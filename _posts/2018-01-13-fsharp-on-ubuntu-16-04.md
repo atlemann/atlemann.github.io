@@ -2,7 +2,8 @@
 layout: post
 title:  "F# on Ubuntu 16.04 from scratch"
 date:   2018-01-13 20:55:44 +0100
-categories: jekyll update
+categories: fsharp
+tags: f# fsharp ubuntu linux development vscode ionide mono dotnet
 ---
 
 I am a little late to the party, but here is how you can set up a full development environment for F# on .NET Core.
