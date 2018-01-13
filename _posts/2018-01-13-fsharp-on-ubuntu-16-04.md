@@ -11,6 +11,7 @@ I am a little late to the party, but here is how you can set up a full developme
 # TL;DR
 
     $ git clone https://github.com/atlemann/installscripts.git
+    $ cd installscripts
     $ ./install-fsharp-devenv.sh
 
 Go hack!
