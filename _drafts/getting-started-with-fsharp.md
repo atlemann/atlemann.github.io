@@ -27,7 +27,6 @@ Now you're going to see a very emtpy `VSCode` instance without anything in it. N
 
 ![F#: New Project]({{ "/assets/gettingstarted/newproject.png" }})
 
-
 ## Dotnet CLI
 
 Again, create the root folder for your new project and open `VSCode`.
@@ -76,6 +75,52 @@ Now go ahead and run it by typing:
 
     $ dotnet run --project src/MyConsoleApp/MyConsoleApp.fsproj
     Hello World from F#!
+
+Next we're going to create a library project we can use from our awesome console app.
+
+    $ dotnet new classlib -lang F# -o src/MyLibrary
+    The template "Class library" was created successfully.
+
+To use this library in the console app, we have to reference it. `dotnet CLI` has a command for this which works like this:
+
+    dotnet add <ProjectToAddReferenceTo> reference <ProjectToReference>
+
+So in our case this will look like this:
+
+    $ dotnet add src/MyConsoleApp/MyConsoleApp.fsproj reference src/MyLibrary/MyLibrary.fsproj
+    Reference `..\MyLibrary\MyLibrary.fsproj` added to the project.
+
+Your `MyConsoleApp.fsproj` file will now look like this:
+
+    <Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+      <OutputType>Exe</OutputType>
+      <TargetFramework>netcoreapp2.0</TargetFramework>
+    </PropertyGroup>
+
+    <ItemGroup>
+      <Compile Include="Program.fs" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <ProjectReference Include="..\MyLibrary\MyLibrary.fsproj" />
+    </ItemGroup>
+
+    </Project>
+
+and your files tree like this:
+
+![Class lib files]({{ "/assets/gettingstarted/with_class_lib_files.png" }})
+
+Now that we have added a reference to the class library, we can try to use it. Open `Program.fs` and `Library.fs` and change the code to something like this:
+
+![Class lib files]({{ "/assets/gettingstarted/using_classlib.png" }})
+
+and try to run the application with a command line argument:
+
+    $ dotnet run -p src/MyConsoleApp/MyConsoleApp.fsproj Scott
+    Hello Scott
 
 # Step 2: Adding tests project
 
