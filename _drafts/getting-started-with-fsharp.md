@@ -1,6 +1,6 @@
 ---
 layout: post
-title:  "Getting started with F#"
+title:  "Getting started with F# in VSCode"
 date:   2018-02-22 20:55:44 +0100
 categories: fsharp
 tags: f# fsharp ubuntu linux development vscode ionide mono dotnet
@@ -8,14 +8,19 @@ tags: f# fsharp ubuntu linux development vscode ionide mono dotnet
 
 Now that we have set up our development environment, it's about time to get started with the coding. In this post we are going to get to know different ways of creating a new F# project from scratch.
 
-# Step 1: Creating a project
-
-The first thing you'll have to do is to create an F# project. We're doing to look at two different ways to do this:
+Tools for working with .NET projects:
 
 1. [Forge](http://forge.run) via [Ionide](http://ionide.io)
 2. dotnet CLI
+3. By hand ;)
 
-## Ionide
+
+## Creating a project
+
+The first thing you'll have to do is to create an F# project.
+
+
+### With Ionide
 
 The first thing you'll have to do is to create a root folder for your new project and open `VSCode` in that folder:
 
@@ -27,7 +32,7 @@ Now you're going to see a very emtpy `VSCode` instance without anything in it. N
 
 ![F#: New Project]({{ "/assets/gettingstarted/newproject.png" }})
 
-## Dotnet CLI
+### With dotnet CLI
 
 Again, create the root folder for your new project and open `VSCode`.
 
@@ -81,46 +86,130 @@ Next we're going to create a library project we can use from our awesome console
     $ dotnet new classlib -lang F# -o src/MyLibrary
     The template "Class library" was created successfully.
 
+and your files tree should now look like this:
+
+![Class lib files]({{ "/assets/gettingstarted/with_class_lib_files.png" }})
+
+## Adding project reference
+
+### With Ionide
+
+### With dotnet CLI
+
 To use this library in the console app, we have to reference it. `dotnet CLI` has a command for this which works like this:
 
     dotnet add <ProjectToAddReferenceTo> reference <ProjectToReference>
 
-So in our case this will look like this:
+So in our case we will run the following from the root directory:
 
     $ dotnet add src/MyConsoleApp/MyConsoleApp.fsproj reference src/MyLibrary/MyLibrary.fsproj
     Reference `..\MyLibrary\MyLibrary.fsproj` added to the project.
 
-Your `MyConsoleApp.fsproj` file will now look like this:
+### By hand
 
-    <Project Sdk="Microsoft.NET.Sdk">
+With the new MSBuild SDK, it's actually possible to edit `.*proj` files by hand. Now add a `<ProjectReference>` to your `MyLibrary.fsproj` in your `MyConsoleApp.fsproj`, which will now look like this:
 
-    <PropertyGroup>
-      <OutputType>Exe</OutputType>
-      <TargetFramework>netcoreapp2.0</TargetFramework>
-    </PropertyGroup>
+```xml
+<Project Sdk="Microsoft.NET.Sdk">
 
-    <ItemGroup>
-      <Compile Include="Program.fs" />
-    </ItemGroup>
+<PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>netcoreapp2.0</TargetFramework>
+</PropertyGroup>
 
-    <ItemGroup>
-      <ProjectReference Include="..\MyLibrary\MyLibrary.fsproj" />
-    </ItemGroup>
+<ItemGroup>
+    <Compile Include="Program.fs" />
+</ItemGroup>
 
-    </Project>
+<ItemGroup>
+    <ProjectReference Include="..\MyLibrary\MyLibrary.fsproj" />
+</ItemGroup>
 
-and your files tree like this:
+</Project>
+```
 
-![Class lib files]({{ "/assets/gettingstarted/with_class_lib_files.png" }})
+## Running your Application
 
 Now that we have added a reference to the class library, we can try to use it. Open `Program.fs` and `Library.fs` and change the code to something like this:
 
 ![Class lib files]({{ "/assets/gettingstarted/using_classlib.png" }})
 
-and try to run the application with a command line argument:
+### With Ionide
+
+### With dotnet CLI
 
     $ dotnet run -p src/MyConsoleApp/MyConsoleApp.fsproj Scott
     Hello Scott
+
+### With VSCode
+
+Press `F5` and you will see the following menu popping up where you should select `.NET Core`:
+
+![Select run environment]({{ "/assets/gettingstarted/select_run_environment.png" }})
+
+This will create a folder called `.vscode` with a file called `launch.json` with the following content (and then some).
+
+```json
+"version": "0.2.0",
+    "configurations": [
+        {
+            "name": ".NET Core Launch (console)",
+            "type": "coreclr",
+            "request": "launch",
+            "preLaunchTask": "build",
+            "program": "${workspaceFolder}/bin/Debug/<insert-target-framework-here>/<insert-project-name-here>.dll",
+            "args": ["Scott"],
+            "cwd": "${workspaceFolder}",
+            "console": "internalConsole",
+            "stopAtEntry": false,
+            "internalConsoleOptions": "openOnSessionStart"
+        },
+```
+
+You'll have to add `/src/MyConsoleApp` and edit the `<insert-target-framework-here>` and `<insert-project-name-here>` to the target framework in the `MyConsoleApp.fsproj` file and the name of the console app dll itself. To get the same output as above, add `Scott` to the `args` entry :
+
+```json
+"program": "${workspaceFolder}/src/MyConsoleApp/bin/Debug/netcoreapp2.0/MyConsoleApp.dll",
+"args": ["Scott"],
+```
+
+Press `F5` again and you will get the following popup:
+
+![Tasks.json step1]({{ "/assets/gettingstarted/tasks_json_step1.png" }})
+
+Choose `Configure Task` and VSCode will show you the following:
+
+![Tasks.json step2]({{ "/assets/gettingstarted/tasks_json_step2.png" }})
+
+Just press enter, since there is only one option, and in the following menu, choose `.NET Core`.
+
+![Tasks.json step3]({{ "/assets/gettingstarted/tasks_json_step3.png" }})
+
+This will create a `tasks.json` file next to the `launch.json` file in the `.vscode` folder, looking like this:
+
+```json
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "build",
+            "command": "dotnet build",
+            "type": "shell",
+            "group": "build",
+            "presentation": {
+                "reveal": "silent"
+            },
+            "problemMatcher": "$msCompile"
+        }
+    ]
+}
+```
+
+If you try to hit `F5` again now, the build will fail, since there is no project defined. To fix this, add the `MyConsoleApp.fsproj` to the `command`:
+
+```json
+"command": "dotnet build src/MyConsoleApp/MyConsoleApp.fsproj",
+```
 
 # Step 2: Adding tests project
 
