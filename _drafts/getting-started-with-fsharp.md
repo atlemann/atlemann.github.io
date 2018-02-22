@@ -112,18 +112,18 @@ With the new MSBuild SDK, it's actually possible to edit `.*proj` files by hand.
 ```xml
 <Project Sdk="Microsoft.NET.Sdk">
 
-<PropertyGroup>
-    <OutputType>Exe</OutputType>
-    <TargetFramework>netcoreapp2.0</TargetFramework>
-</PropertyGroup>
+  <PropertyGroup>
+      <OutputType>Exe</OutputType>
+      <TargetFramework>netcoreapp2.0</TargetFramework>
+  </PropertyGroup>
 
-<ItemGroup>
-    <Compile Include="Program.fs" />
-</ItemGroup>
+  <ItemGroup>
+      <Compile Include="Program.fs" />
+  </ItemGroup>
 
-<ItemGroup>
-    <ProjectReference Include="..\MyLibrary\MyLibrary.fsproj" />
-</ItemGroup>
+  <ItemGroup>
+      <ProjectReference Include="..\MyLibrary\MyLibrary.fsproj" />
+  </ItemGroup>
 
 </Project>
 ```
@@ -210,6 +210,14 @@ If you try to hit `F5` again now, the build will fail, since there is no project
 ```json
 "command": "dotnet build src/MyConsoleApp/MyConsoleApp.fsproj",
 ```
+
+Now you should be able to press `F5` and see the following in the built-in terminal:
+
+![Run with VSCode result]({{ "/assets/gettingstarted/run_with_vscode_result.png" }})
+
+If you like buttons, you could also go to the `Debug` pane in `VSCode` which now will list all configs in the `launch.json` file and press the green play button:
+
+![Run with VSCode result]({{ "/assets/gettingstarted/debug_by_pressing_play.png" }})
 
 # Step 2: Adding tests project
 
