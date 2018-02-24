@@ -92,19 +92,6 @@ and your files tree should now look like this:
 
 ## Adding project reference
 
-### With Ionide
-
-### With dotnet CLI
-
-To use this library in the console app, we have to reference it. `dotnet CLI` has a command for this which works like this:
-
-    dotnet add <ProjectToAddReferenceTo> reference <ProjectToReference>
-
-So in our case we will run the following from the root directory:
-
-    $ dotnet add src/MyConsoleApp/MyConsoleApp.fsproj reference src/MyLibrary/MyLibrary.fsproj
-    Reference `..\MyLibrary\MyLibrary.fsproj` added to the project.
-
 ### By hand
 
 With the new MSBuild SDK, it's actually possible to edit `.*proj` files by hand. Now add a `<ProjectReference>` to your `MyLibrary.fsproj` in your `MyConsoleApp.fsproj`, which will now look like this:
@@ -127,6 +114,94 @@ With the new MSBuild SDK, it's actually possible to edit `.*proj` files by hand.
 
 </Project>
 ```
+
+### With Ionide
+
+### With dotnet CLI
+
+To use this library in the console app, we have to reference it. `dotnet CLI` has a command for this which works like this:
+
+    dotnet add <ProjectToAddReferenceTo> reference <ProjectToReference>
+
+So in our case we will run the following from the root directory:
+
+    $ dotnet add src/MyConsoleApp/MyConsoleApp.fsproj reference src/MyLibrary/MyLibrary.fsproj
+    Reference `..\MyLibrary\MyLibrary.fsproj` added to the project.
+
+## Adding NuGet reference
+
+Now we're going to add an arguments parser to our console app from NuGet. The goto arguments parser for F# is [Argu](https://fsprojects.github.io/Argu/).
+
+### By hand
+
+Again, with the new MSBuild SDK, adding a NuGet package is as simple as adding a `<PackageReference>` to `Argu` in your `MyConsoleApp.fsproj`, which will now look like this:
+
+```xml
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>netcoreapp2.0</TargetFramework>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="Program.fs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\MyLibrary\MyLibrary.fsproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Argu" Version="5.0.1" />
+  </ItemGroup>
+
+</Project>
+```
+
+Now do a `$ dotnet restore src/MyConsoleApp/MyConsoleApp.fsproj`. If you are getting a warning like `Detected package downgrade: FSharp.Core`, add a `<PackageReference>` to `FSharp.Core` in the same `<ItemGroup>` as `Argu`, matching at least the minumum version required by `Argu`:
+
+```xml
+  <ItemGroup>
+    <PackageReference Include="FSharp.Core" Version="4.3.2" />
+    <PackageReference Include="Argu" Version="5.0.1" />
+  </ItemGroup>
+```
+
+### With dotnet CLI
+
+`dotnet CLI` has a command for installing NuGet packages which looks like this:
+
+```bash
+$ dotnet add <ProjectToAddNuGetTo> package <NuGetPackageId>
+```
+
+So to add `Argu` to our console app we just type:
+
+```bash
+$ dotnet add src/MyConsoleApp/MyConsoleApp.fsproj package Argu
+```
+
+To fix the potential `Detected package downgrade: FSharp.Core` issue, you should in theory just run `$ dotnet add src/MyConsoleApp/MyConsoleApp.fsproj package FSharp.Core`, however, for me it fails with an error. So you'll have to add `FSharp.Core` by hand in the `MyConsoleApp.fsproj` file as mentioned above or switch to `Paket` as explained below.
+
+### With Paket
+
+Paket is an F# community open source package manager which fixes a lot of the issues NuGet has, e.g. global `paket.dependencies` and `paket.lock` files which globally defines which packages and versions are to be used and much more. First, download the [paket.bootstrapper.exe](https://github.com/fsprojects/Paket/releases/latest) and save it as `<SolutionFolder>/.paket/paket.exe` (yes, you are renaming it. See [here](https://fsprojects.github.io/Paket/bootstrapper.html) for more info). To initialize `Paket` type the following:
+
+If you haven't already added any packages, run the following to get started with Paket and add the `Argu` package to the `MyConsoleApp` project:
+
+```bash
+$ mono .paket/paket.exe init
+$ mono .paket/paket.exe add --project src/MyConsoleApp/MyConsoleApp.fsproj Argu
+```
+
+If you're already using NuGet and want to switch to Paket, run the following command and Paket will figure out which NuGet packages you are using and initialize itself accordingly:
+
+```bash
+$ mono .paket/paket.exe convert-from-nuget
+```
+
+Paket won't give you the `Detected package downgrade: FSharp.Core` issue mentioned above, since it, by default, resolves the higest versions of transient dependencies, unlike `NuGet` which does the opposite. Paket also automatically hooks into `dotnet restore`, so you won't have to do `mono .paket/paket.exe restore` to restore your packages when using Paket with `dotnet CLI`.
 
 ## Running your Application
 
@@ -302,3 +377,11 @@ Your tree will now look like this:
 
 # Step 5: Adding NuGet references 
 
+## Now go read this
+
+* [Argu command line parser](https://fsprojects.github.io/Argu/)
+* [Expecto F# unit-test library](https://github.com/haf/expecto)
+* [Paket package manager](https://fsprojects.github.io/Paket/)
+* [Paket intro](https://forki.github.io/PaketIntro/#/)
+* [Getting started with Paket](https://cockneycoder.wordpress.com/2017/08/07/getting-started-with-paket-part-1/)
+* [FAKE - Build scripting in F#](http://fake.build)
