@@ -215,9 +215,13 @@ Now you should be able to press `F5` and see the following in the built-in termi
 
 ![Run with VSCode result]({{ "/assets/gettingstarted/run_with_vscode_result.png" }})
 
-If you like buttons, you could also go to the `Debug` pane in `VSCode` which now will list all configs in the `launch.json` file and press the green play button:
+If you like buttons, you could also go to the `Debug` pane in `VSCode` which now will list all configs in the `launch.json` file (which you can open by pressing that cogwheel) and press the green play button:
 
 ![Run with VSCode result]({{ "/assets/gettingstarted/debug_by_pressing_play.png" }})
+
+Now you can set breakpoints in your code and debug your (maybe first) .NET Core F# project in VSCode. How cool is that!
+
+![Run with VSCode result]({{ "/assets/gettingstarted/debugging_play_button.png" }})
 
 # Step 2: Adding tests project
 
