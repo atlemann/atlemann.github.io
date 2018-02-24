@@ -223,7 +223,78 @@ Now you can set breakpoints in your code and debug your (maybe first) .NET Core 
 
 ![Run with VSCode result]({{ "/assets/gettingstarted/debugging_play_button.png" }})
 
-# Step 2: Adding tests project
+## Adding tests project
+
+In F#, [Expecto](https://github.com/haf/expecto) is the goto project for unit-testing. There are two ways to set up a testing project using `Expecto`. By hand or by dotnet CLI template.
+
+### With dotnet CLI
+
+First you need to create a console app, since Expecto is just a library that you can run from console. The second thing you'll have to do is to add the `Expecto NuGet` package.
+
+```bash
+$ dotnet new console -lang F# -o tests/MyTests
+$ dotnet add tests/MyTests/MyTests.fsproj package Expecto
+$ dotnet restore tests/MyTests/MyTests.fsproj
+```
+
+Replace the contents of `Program.fs` with the following:
+
+```fsharp
+open Expecto
+
+[<EntryPoint>]
+let main argv =
+    Tests.runTestsInAssembly defaultConfig argv
+```
+
+### With dotnet CLI template
+
+As you saw earlier, `dotnet new` did not show any template for `Expecto`, however, someone has created this for us. To install it type the following:
+
+```bash
+$ dotnet new -i Expecto.Template::*
+...
+...
+Templates                                         Short Name       Language          Tags
+----------------------------------------------------------------------------------------------------------------------------
+Console Application                               console          [C#], F#, VB      Common/Console
+Class library                                     classlib         [C#], F#, VB      Common/Library
+SAFE-Stack Web App v0.4.0                         SAFE             F#                F#/Web/Suave/Fable/Elmish/Giraffe/Bulma
+Simple Fable App                                  fable            F#                Fable
+Expecto .net core Template                        expecto          F#                Test
+Unit Test Project                                 mstest           [C#], F#, VB      Test/MSTest
+xUnit Test Project                                xunit            [C#], F#, VB      Test/xUnit
+ASP.NET Core Empty                                web              [C#], F#          Web/Empty
+ASP.NET Core Web App (Model-View-Controller)      mvc              [C#], F#          Web/MVC
+ASP.NET Core Web App                              razor            [C#]              Web/MVC/Razor Pages
+ASP.NET Core with Angular                         angular          [C#]              Web/MVC/SPA
+ASP.NET Core with React.js                        react            [C#]              Web/MVC/SPA
+ASP.NET Core with React.js and Redux              reactredux       [C#]              Web/MVC/SPA
+ASP.NET Core Web API                              webapi           [C#], F#          Web/WebAPI
+global.json file                                  globaljson                         Config
+NuGet Config                                      nugetconfig                        Config
+Web Config                                        webconfig                          Config
+Solution File                                     sln                                Solution
+Razor Page                                        page                               Web/ASP.NET
+MVC ViewImports                                   viewimports                        Web/ASP.NET
+MVC ViewStart
+```
+
+Now you'll se a new template called `Expecto .net core Template` that we will create by typing:
+
+```bash
+$ dotnet new expecto -o tests/MyTests
+```
+
+Your tree will now look like this:
+
+![Run with VSCode result]({{ "/assets/gettingstarted/file_tree_with_expecto.png" }})
+
+## Running tests
+
+### Dotnet CLI
+
+### Ionide
 
 # Step 3: Creating a solution file
 
