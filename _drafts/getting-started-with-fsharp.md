@@ -13,24 +13,172 @@ Tools for working with .NET projects:
 1. [Forge](http://forge.run) via [Ionide](http://ionide.io)
 2. dotnet CLI
 3. By hand ;)
+4. [Paket](https://fsprojects.github.io/Paket/)
+5. [FAKE](http://fake.build)
 
+We're going to do the following things using those different tools:
 
-## Creating a project
+1. Create a console app
+2. Create a class library
+3. Adding project reference from class lib to console app
+4. Building
+5. Running the console app
+6. Adding NuGet packages
+7. Adding test project
+8. Running tests
+9. Debugging
 
-The first thing you'll have to do is to create an F# project.
+## Ionide, Forge and Paket
 
-
-### With Ionide
+## 1 Create a console app
 
 The first thing you'll have to do is to create a root folder for your new project and open `VSCode` in that folder:
 
     $ cd ~/src
-    $ mkdir MyProject
-    $ code MyProject
+    $ mkdir MyForgeProject
+    $ code MyForgeProject
 
 Now you're going to see a very emtpy `VSCode` instance without anything in it. Now, to create your project, hit `Ctrl+Shift+P` and start typing `new project`.
 
 ![F#: New Project]({{ "/assets/gettingstarted/newproject.png" }})
+
+Choose `F#: New Project` and choose `console` from the menu that appears.
+
+![Forge templates]({{ "/assets/gettingstarted/forge_templates.png" }})
+
+First, `Forge` will ask you which folder to put your new project `folder` in and next the name of your project:
+
+![Project folder]({{ "/assets/gettingstarted/forge_new_project_folder.png" }})
+
+![Project name]({{ "/assets/gettingstarted/forge_new_project_name.png" }})
+
+Your project tree will now look like this:
+
+![Project tree]({{ "/assets/gettingstarted/forge_project_tree_consoleapp.png" }})
+
+Alternatively use `Ionide's` `F# Project Explorer` and press the green plus sign for creating a new project.
+
+![F# project explorer]({{ "/assets/gettingstarted/fsharp_project_explorer_header.png" }})
+
+The forge template uses [Paket](https://fsprojects.github.io/Paket/) for package management and [FAKE](http://fake.build) for build scripting. It also targets .NET Full framework, but we're going to change that to .NET Core by editing the `MyForgeConsoleApp.fsproj` file and replacing
+
+```xml
+<TargetFramework>net461</TargetFramework>
+```
+
+with
+
+```xml
+<TargetFramework>netcoreapp2.0</TargetFramework>
+```
+
+`Paket` is also restricted to resolving `>= net461` dependencies, but we'll have to remove that, since we're now on .NET Core. Open the `paket.dependencies` file and remove the line:
+
+```bash
+framework: >= net461
+```
+
+Your `paket.dependencies` file should now look like this:
+
+```bash
+source https://www.nuget.org/api/v2
+
+nuget FSharp.Core
+
+group Build
+source https://www.nuget.org/api/v2
+
+nuget FAKE
+```
+
+Since the framework restriction is now removed, you have to update the `paket.lock` file by calling `Paket install` via the `Ctrl+Shift+P` menu in `VSCode`.
+
+![Paket install]({{ "/assets/gettingstarted/forge_paket_install.png" }})
+
+## 2 Create a class library
+
+To create a class library, open the `VSCode Command palette` (`Ctrl+Shift+P`) and choose `F#: New Project` or press the green plus, but this time choose `classlib` in the menu. Choose `src` as `Project folder` and `MyForgeClasslib` as `Project name`. Again, it targets `net461`, so go to `src/MyForgeClasslib/MyForgeClasslib.fsproj` and replace the full framework target with a `netstandard` target, since this is a class lib and not a console app:
+
+```xml
+<TargetFramework>net461</TargetFramework>
+```
+
+with
+
+```xml
+<TargetFramework>netstandard2.0</TargetFramework>
+```
+
+## 3 Adding a project reference
+
+Now we want to add a project reference to the classlib in our console app. Open the `VSCode Command palette` (`Ctrl+Shift+P`) and write `project reference` and choose `F#: Add Project Reference`.
+
+![Forge project reference]({{ "/assets/gettingstarted/forge_add_project_reference.png" }})
+
+This will first ask you which project to edit and next the which project to reference. Choose the console app and classlib respectively.
+
+Alternatively, right click `Project References` under `MyForgeConsoleApp` in the `F# Project Explorer` pane.
+
+![Forge project reference]({{ "/assets/gettingstarted/fsharp_project_explorer_add_reference.png" }})
+
+and you will be asked which project to reference.
+
+Forge will now update your MyForgeConsoleApp.fsproj with a `<ProjectReference>`. Now you can go to your `MyForgeConsoleApp.fs` and replace it with the following contnet:
+
+```fsharp
+module MyForgeConsoleApp
+
+open MyForgeClasslib
+
+[<EntryPoint>]
+let main argv =
+    let x = MyForgeClasslib()
+
+    printfn "%A" x.X
+    0 // return an integer exit code
+```
+
+## 4 Building
+
+There might be some red errors under the `MyForgeClasslib` entries, which means that we'll have to build our project to get everything working. Since this template uses `FAKE` to build, run it by opening the `VSCode Command palette` (`Ctrl+Shift+P`) and writing `build` and selecting `FAKE: Build Default` or just pressing `Ctrl+F5` as you can see here:
+
+![FAKE build]({{ "/assets/gettingstarted/forge_fake_build.png" }})
+
+This should eventually give you a `Build Time Report` and `Status: Ok`. If the red error markers don't dissapear, try opening your `VSCode Command palette` (`Ctrl+Shift+P`) and choose `Reload window`.
+
+## 5 Running
+
+Ionide can run the project for you. First you have to set your startup project by right clicking the project you want to debug. Set the `MyForgeConsoleApp` project as startup project and press the round green icon with a play sign inside. This will actually run it in debug mode.
+
+![F# project explorer]({{ "/assets/gettingstarted/fsharp_project_explorer_header.png" }})
+
+This should open a terminal and show the output of the applicaion.
+
+![F# project explorer]({{ "/assets/gettingstarted/ionide_run_console.png" }})
+
+## 6 Adding NuGet packages
+
+Now lets add the console app arguments parser `Argu` to our console app. First, open the project file to add it to by right clicking `MyForgeConsoleApp` in `F# Project Explorer` and choose `Open project file` from the menu. Then open the `VSCode Command palette` (`Ctrl+Shift+P`) and write `add nuget package` and choose `Paket: Add NuGet Package (to current project)` and write `Argu` in the box that appears. Tada! You can now add `open Argu` to the `MyForgeConsoleApp.fs` file and start parsing arguments.
+
+## 7 Adding a test project
+
+In the F# world, `Expecto` is the testing lib to use and `Forge` has a project template for that. Press the green plus in `F# Project Explorer` and choose expecto. Put it in `tests` folder and call it `MyForgeExpecto`. Change the `<TargetFramework>` to `netcoreapp2.0` in the `MyForgeExpecto.fsproj` file. If you get any weird issues, try running `Paket install` again to update your `paket.lock` file.
+
+## 8 Running tests
+
+Ionide has buit in support for `Expecto`, so simply open `VSCode Command palette` (`Ctrl+Shift+P`) and write `expecto` and choose `Expecto: Run` or press `Ctrl+F6`. If you open the `Tests.fs` file you will now see a green and a red chemistry bottle type thing next to the passing and failing test respectively.
+
+![Expecto resutls]({{ "/assets/gettingstarted/expecto_success_fail.png" }})
+
+## 9 Debugging
+
+Ionide has build in support for debugging. First you have to set your startup project by right clicking the project you want to debug. Set the `MyForgeExpecto` project as startup project, add a breakpoint on line 14 in `Tests.fs` (by clicking right below the red bottle) and press the round green icon with a play sign inside:
+
+![F# project explorer]({{ "/assets/gettingstarted/fsharp_project_explorer_header.png" }})
+
+If you also press the debug icon in `VSCode's` sidebar, you should see the following:
+
+![F# project explorer]({{ "/assets/gettingstarted/ionide_debug_expecto.png" }})
 
 ### With dotnet CLI
 
@@ -186,7 +334,7 @@ To fix the potential `Detected package downgrade: FSharp.Core` issue, you should
 
 ### With Paket
 
-Paket is an F# community open source package manager which fixes a lot of the issues NuGet has, e.g. global `paket.dependencies` and `paket.lock` files which globally defines which packages and versions are to be used and much more. First, download the [paket.bootstrapper.exe](https://github.com/fsprojects/Paket/releases/latest) and save it as `<SolutionFolder>/.paket/paket.exe` (yes, you are renaming it. See [here](https://fsprojects.github.io/Paket/bootstrapper.html) for more info). To initialize `Paket` type the following:
+Paket is an F# community open source package manager which fixes a lot of the issues NuGet has, e.g. global `paket.dependencies` and `paket.lock` files which globally defines which packages and versions are to be used and much more. First, download the [paket.bootstrapper.exe](https://github.com/fsprojects/Paket/releases/latest) and save it as `<SolutionFolder>/.paket/paket.exe` (yes, you are renaming it. See [here](https://fsprojects.github.io/Paket/bootstrapper.html) for more info).
 
 If you haven't already added any packages, run the following to get started with Paket and add the `Argu` package to the `MyConsoleApp` project:
 
