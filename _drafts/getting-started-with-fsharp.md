@@ -1,12 +1,11 @@
 ---
 layout: post
-title:  "Getting started with F# in VSCode"
-date:   2018-02-22 20:55:44 +0100
+title:  "Creating F# solutions in VSCode from scratch"
 categories: fsharp
 tags: f# fsharp ubuntu linux development vscode ionide mono dotnet
 ---
 
-Now that we have set up our development environment, it's about time to get started with the coding. In this post we are going to get to know different ways of creating a new F# project from scratch.
+Now that we have set up our development environment, it's about time to get started with the coding. In this post we are going to get to know different ways of creating a new F# solution from scratch.
 
 Tools for working with .NET projects:
 
