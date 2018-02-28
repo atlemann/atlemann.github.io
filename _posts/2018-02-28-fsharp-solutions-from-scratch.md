@@ -42,25 +42,25 @@ The first thing you'll have to do is to create a root folder for your new projec
 
 Now you're going to see a very emtpy `VSCode` instance without anything in it. Now, to create your project, hit `Ctrl+Shift+P` and start typing `new project`.
 
-![F#: New Project]({{ "/assets/gettingstarted/newproject.png" }})
+![F#: New Project]({{ "/assets/fsharp_solutions_from_scratch/newproject.png" }})
 
 Choose `F#: New Project` and choose `console` from the menu that appears.
 
-![Forge templates]({{ "/assets/gettingstarted/forge_templates.png" }})
+![Forge templates]({{ "/assets/fsharp_solutions_from_scratch/forge_templates.png" }})
 
 First, `Forge` will ask you which folder to put your new project `folder` in and next the name of your project:
 
-![Project folder]({{ "/assets/gettingstarted/forge_new_project_folder.png" }})
+![Project folder]({{ "/assets/fsharp_solutions_from_scratch/forge_new_project_folder.png" }})
 
-![Project name]({{ "/assets/gettingstarted/forge_new_project_name.png" }})
+![Project name]({{ "/assets/fsharp_solutions_from_scratch/forge_new_project_name.png" }})
 
 Your project tree will now look like this:
 
-![Project tree]({{ "/assets/gettingstarted/forge_project_tree_consoleapp.png" }})
+![Project tree]({{ "/assets/fsharp_solutions_from_scratch/forge_project_tree_consoleapp.png" }})
 
 Alternatively use `Ionide's` `F# Project Explorer` and press the green plus sign for creating a new project.
 
-![F# project explorer]({{ "/assets/gettingstarted/fsharp_project_explorer_header.png" }})
+![F# project explorer]({{ "/assets/fsharp_solutions_from_scratch/fsharp_project_explorer_header.png" }})
 
 The forge template uses [Paket](https://fsprojects.github.io/Paket/) for package management and [FAKE](http://fake.build) for build scripting. It also targets .NET Full framework, but we're going to change that to .NET Core by editing the `MyForgeConsoleApp.fsproj` file and replacing
 
@@ -95,7 +95,7 @@ nuget FAKE
 
 Since the framework restriction is now removed, you have to update the `paket.lock` file by calling `Paket install` via the `Ctrl+Shift+P` menu in `VSCode`.
 
-![Paket install]({{ "/assets/gettingstarted/forge_paket_install.png" }})
+![Paket install]({{ "/assets/fsharp_solutions_from_scratch/forge_paket_install.png" }})
 
 ## 2 Create a class library
 
@@ -115,15 +115,15 @@ with
 
 Ionide has a menu for manipulating projects. Simply right-click the project you want to add a file to and select `Add file`
 
-![Forge add file]({{ "/assets/gettingstarted/forge_add_file.png" }})
+![Forge add file]({{ "/assets/fsharp_solutions_from_scratch/forge_add_file.png" }})
 
 and choose a name
 
-![Forge add file name]({{ "/assets/gettingstarted/forge_new_file_name.png" }})
+![Forge add file name]({{ "/assets/fsharp_solutions_from_scratch/forge_new_file_name.png" }})
 
 Since F# cares about the order of the files in your project, Ionide supports moving files up or down by right-clicking the file in the `F# project explorer`:
 
-![Forge add file in tree]({{ "/assets/gettingstarted/forge_move_file.png" }})
+![Forge add file in tree]({{ "/assets/fsharp_solutions_from_scratch/forge_move_file.png" }})
 
 Please note that F# script files (`.fsx`) are not shown in the `F# project explorer`, but still might influence this command by standing "in the way" if they are included in the `.fsproj` file. Have the `.fsproj` file open while doing this and see what happens.
 
@@ -131,13 +131,13 @@ Please note that F# script files (`.fsx`) are not shown in the `F# project explo
 
 Now we want to add a project reference to the classlib in our console app. Open the `VSCode Command palette` (`Ctrl+Shift+P`) and write `project reference` and choose `F#: Add Project Reference`.
 
-![Forge project reference]({{ "/assets/gettingstarted/forge_add_project_reference.png" }})
+![Forge project reference]({{ "/assets/fsharp_solutions_from_scratch/forge_add_project_reference.png" }})
 
 This will first ask you which project to edit and next the which project to reference. Choose the console app and classlib respectively.
 
 Alternatively, right click `Project References` under `MyForgeConsoleApp` in the `F# Project Explorer` pane.
 
-![Forge project reference]({{ "/assets/gettingstarted/fsharp_project_explorer_add_reference.png" }})
+![Forge project reference]({{ "/assets/fsharp_solutions_from_scratch/fsharp_project_explorer_add_reference.png" }})
 
 and you will be asked which project to reference.
 
@@ -160,7 +160,7 @@ let main argv =
 
 There might be some red errors under the `MyForgeClasslib` entries, which means that we'll have to build our project to get everything working. Since this template uses `FAKE` to build, run it by opening the `VSCode Command palette` (`Ctrl+Shift+P`) and writing `build` and selecting `FAKE: Build Default` or just pressing `Ctrl+F5` as you can see here:
 
-![FAKE build]({{ "/assets/gettingstarted/forge_fake_build.png" }})
+![FAKE build]({{ "/assets/fsharp_solutions_from_scratch/forge_fake_build.png" }})
 
 This should eventually give you a `Build Time Report` and `Status: Ok`. You might still see some red error markers under `open MyForgeConsoleApp`. If don't dissapear by themselves after a little while, try opening your `VSCode Command palette` (`Ctrl+Shift+P`) and choose `Reload window`.
 
@@ -168,11 +168,11 @@ This should eventually give you a `Build Time Report` and `Status: Ok`. You migh
 
 Ionide can run the project for you. First you have to set your startup project by right clicking the project you want to debug. Set the `MyForgeConsoleApp` project as startup project and press the round green icon with a play sign inside. This will actually run it in debug mode.
 
-![F# project explorer]({{ "/assets/gettingstarted/fsharp_project_explorer_header.png" }})
+![F# project explorer]({{ "/assets/fsharp_solutions_from_scratch/fsharp_project_explorer_header.png" }})
 
 This should open a terminal and show the output of the applicaion.
 
-![F# project explorer]({{ "/assets/gettingstarted/ionide_run_console.png" }})
+![F# project explorer]({{ "/assets/fsharp_solutions_from_scratch/ionide_run_console.png" }})
 
 ## 7 Adding NuGet packages
 
@@ -186,17 +186,17 @@ In the F# world, `Expecto` is the testing lib to use and `Forge` has a project t
 
 Ionide has buit in support for `Expecto`, so simply open `VSCode Command palette` (`Ctrl+Shift+P`) and write `expecto` and choose `Expecto: Run` or press `Ctrl+F6`. If you open the `Tests.fs` file you will now see a green and a red chemistry bottle type thing next to the passing and failing test respectively.
 
-![Expecto resutls]({{ "/assets/gettingstarted/expecto_success_fail.png" }})
+![Expecto resutls]({{ "/assets/fsharp_solutions_from_scratch/expecto_success_fail.png" }})
 
 ## 10 Debugging
 
 Ionide has build in support for debugging. First you have to set your startup project by right clicking the project you want to debug. Set the `MyForgeExpecto` project as startup project, add a breakpoint on line 14 in `Tests.fs` (by clicking right below the red bottle) and press the round green icon with a play sign inside:
 
-![F# project explorer]({{ "/assets/gettingstarted/fsharp_project_explorer_header.png" }})
+![F# project explorer]({{ "/assets/fsharp_solutions_from_scratch/fsharp_project_explorer_header.png" }})
 
 If you also press the debug icon in `VSCode's` sidebar, you should see the following:
 
-![F# project explorer]({{ "/assets/gettingstarted/ionide_debug_expecto.png" }})
+![F# project explorer]({{ "/assets/fsharp_solutions_from_scratch/ionide_debug_expecto.png" }})
 
  Now you should hopefully be able to scaffold your own projects using Ionide and VSCode and start hacking.
 
@@ -248,7 +248,7 @@ $ dotnet new console -lang F# -o src/MyConsoleApp
 
 This will create the following tree of files:
 
-![Console app files]({{ "/assets/gettingstarted/dotnet_new_console_files.png" }})
+![Console app files]({{ "/assets/fsharp_solutions_from_scratch/dotnet_new_console_files.png" }})
 
 ## 2 Create a class library
 
@@ -261,13 +261,13 @@ The template "Class library" was created successfully.
 
 and your files tree should now look like this:
 
-![Class lib files]({{ "/assets/gettingstarted/with_class_lib_files.png" }})
+![Class lib files]({{ "/assets/fsharp_solutions_from_scratch/with_class_lib_files.png" }})
 
 ## 3 Adding a .fs file
 
 Adding a new file to a project is as simple as right-clicking the folder you want to add it to and select `New File`.
 
-![VSCode new file]({{ "/assets/gettingstarted/vscode_new_file.png" }})
+![VSCode new file]({{ "/assets/fsharp_solutions_from_scratch/vscode_new_file.png" }})
 
 Just call it `NewFile.fs` and we'll have to manually add it to the `.fsproj` file above or below the existing file.
 
@@ -288,7 +288,7 @@ module NewFile
 
 Now, the VSCode explorer doesn't take this file ordering into consideration. For that you'll have to look at Ionide's `F# Project Exploerer`.
 
-![Project explorer new file]({{ "/assets/gettingstarted/new_file_project_explorer.png" }})
+![Project explorer new file]({{ "/assets/fsharp_solutions_from_scratch/new_file_project_explorer.png" }})
 
 ## 4 Adding project reference
 
@@ -364,7 +364,7 @@ Now take a look in `src/MyConsoleApp/bin/Release/netcoreapp2.0/ubuntu.16.04-x64/
 
 Now that we have added a reference to the class library, we can try to use it. Open `Program.fs` and `Library.fs` and change the code to something like this and build it again:
 
-![Class lib files]({{ "/assets/gettingstarted/using_classlib.png" }})
+![Class lib files]({{ "/assets/fsharp_solutions_from_scratch/using_classlib.png" }})
 
 ### With dotnet CLI
 
@@ -385,7 +385,7 @@ Hello Scott
 
 Press `F5` and you will see the following menu popping up where you should select `.NET Core`:
 
-![Select run environment]({{ "/assets/gettingstarted/select_run_environment.png" }})
+![Select run environment]({{ "/assets/fsharp_solutions_from_scratch/select_run_environment.png" }})
 
 This will create a folder called `.vscode` with a file called `launch.json` with the following content (and then some).
 
@@ -415,15 +415,15 @@ You'll have to add `/src/MyConsoleApp` and edit the `<insert-target-framework-he
 
 Press `F5` again and you will get the following popup:
 
-![Tasks.json step1]({{ "/assets/gettingstarted/tasks_json_step1.png" }})
+![Tasks.json step1]({{ "/assets/fsharp_solutions_from_scratch/tasks_json_step1.png" }})
 
 Choose `Configure Task` and VSCode will show you the following:
 
-![Tasks.json step2]({{ "/assets/gettingstarted/tasks_json_step2.png" }})
+![Tasks.json step2]({{ "/assets/fsharp_solutions_from_scratch/tasks_json_step2.png" }})
 
 Just press enter, since there is only one option, and in the following menu, choose `.NET Core`.
 
-![Tasks.json step3]({{ "/assets/gettingstarted/tasks_json_step3.png" }})
+![Tasks.json step3]({{ "/assets/fsharp_solutions_from_scratch/tasks_json_step3.png" }})
 
 This will create a `tasks.json` file next to the `launch.json` file in the `.vscode` folder, looking like this:
 
@@ -453,15 +453,15 @@ If you try to hit `F5` again now, the build will fail, since there is no project
 
 Now you should be able to press `F5` and see the following in the built-in terminal:
 
-![Run with VSCode result]({{ "/assets/gettingstarted/run_with_vscode_result.png" }})
+![Run with VSCode result]({{ "/assets/fsharp_solutions_from_scratch/run_with_vscode_result.png" }})
 
 If you like buttons, you could also go to the `Debug` pane in `VSCode` which now will list all configs in the `launch.json` file (which you can open by pressing that cogwheel) and press the green play button:
 
-![Run with VSCode result]({{ "/assets/gettingstarted/debug_by_pressing_play.png" }})
+![Run with VSCode result]({{ "/assets/fsharp_solutions_from_scratch/debug_by_pressing_play.png" }})
 
 Now you can set breakpoints in your code and debug your (maybe first) .NET Core F# project in VSCode. How cool is that!
 
-![Run with VSCode result]({{ "/assets/gettingstarted/debugging_play_button.png" }})
+![Run with VSCode result]({{ "/assets/fsharp_solutions_from_scratch/debugging_play_button.png" }})
 
 ## 7 Adding NuGet reference
 
@@ -604,7 +604,7 @@ $ dotnet new expecto -o tests/MyTests
 
 Your tree will now look something like this:
 
-![Run with VSCode result]({{ "/assets/gettingstarted/file_tree_with_expecto.png" }})
+![Run with VSCode result]({{ "/assets/fsharp_solutions_from_scratch/file_tree_with_expecto.png" }})
 
 ## 9 Running tests and debugging
 
@@ -624,7 +624,7 @@ $ dotnet run -p tests/MyTests/MyTests.fsproj
 
 Now you'll have to configure a build task and launch parameters for the `Expecto` project by first pressing the cogwheel here:
 
-![Run with VSCode result]({{ "/assets/gettingstarted/debug_by_pressing_play.png" }})
+![Run with VSCode result]({{ "/assets/fsharp_solutions_from_scratch/debug_by_pressing_play.png" }})
 
 which opens `launch.json`. Add the following to the list of `configurations`:
 
@@ -645,7 +645,7 @@ which opens `launch.json`. Add the following to the list of `configurations`:
 
 Here we have changed the `name`, `preLaunchTask` and the `program` entries. Now your list of debug targets should look like this:
 
-![Run with VSCode result]({{ "/assets/gettingstarted/list_of_debug_targets.png" }})
+![Run with VSCode result]({{ "/assets/fsharp_solutions_from_scratch/list_of_debug_targets.png" }})
 
 Now select the `.NET Core Lunch (tests)` entry and press the green play button and you will get a popup saying `Could not find the preLaunchTask 'build-tests'`.
 
