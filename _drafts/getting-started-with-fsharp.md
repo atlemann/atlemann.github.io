@@ -29,6 +29,8 @@ We're going to do the following things using those different tools:
 9. Running tests
 10. Debugging
 
+This will be a 2 part tutorial where we will look at how to do all these steps using two different toolsets, first using the combo `Ionide, Forge and Paket` and after we do the same thing using `dotnet CLI and by hand`.
+
 ## Scaffolding using Ionide, Forge and Paket
 
 ## 1 Create a console app
@@ -266,7 +268,7 @@ and your files tree should now look like this:
 
 Adding a new file to a project is as simple as right-clicking the folder you want to add it to and select `New File`.
 
-![VSCode new file]({{ "/assets/gettingstarted/with_class_lib_files.png" }})
+![VSCode new file]({{ "/assets/gettingstarted/vscode_new_file.png" }})
 
 Just call it `NewFile.fs` and we'll have to manually add it to the `.fsproj` file above or below the existing file.
 
@@ -361,7 +363,7 @@ Now take a look in `src/MyConsoleApp/bin/Release/netcoreapp2.0/ubuntu.16.04-x64/
 
 ## 6 Running
 
-Now that we have added a reference to the class library, we can try to use it. Open `Program.fs` and `Library.fs` and change the code to something like this:
+Now that we have added a reference to the class library, we can try to use it. Open `Program.fs` and `Library.fs` and change the code to something like this and build it again:
 
 ![Class lib files]({{ "/assets/gettingstarted/using_classlib.png" }})
 
@@ -646,9 +648,7 @@ Here we have changed the `name`, `preLaunchTask` and the `program` entries. Now 
 
 ![Run with VSCode result]({{ "/assets/gettingstarted/list_of_debug_targets.png" }})
 
-Now select the `.NET Core Lunch (tests)` entry and press the green play button and you will get this again:
-
-![Tasks.json step1]({{ "/assets/gettingstarted/tasks_json_step1.png" }})
+Now select the `.NET Core Lunch (tests)` entry and press the green play button and you will get a popup saying `Could not find the preLaunchTask 'build-tests'`.
 
 Just select `Configure Task` again and choose `build` in the next popup, which will open the `tasks.json` again. Now add the following task to the list of `tasks`:
 
@@ -690,7 +690,7 @@ Now to build the application, simply type the following from the root folder of 
 $ dotnet build
 ```
 
-Now you can go into `tasks.json` and replace the separate `build` and `build-tests` tasks with the default one which looks like this:
+Now you can go into `tasks.json` and replace the two separate `build` and `build-tests` tasks with a single default one which looks like this:
 
 ```json
 {
