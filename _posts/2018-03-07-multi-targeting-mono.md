@@ -1,8 +1,8 @@
 ---
 layout: post
-title:  "Setting up multi targeting build with mono"
+title:  "Setting up multi-targeting build with Mono"
 categories: fsharp
-tags: f# fsharp ubuntu linux development vscode ionide mono dotnet
+tags: f# fsharp ubuntu linux development vscode mono dotnet
 ---
 
 In this post I'm going to show how I did my first PR to an open-source project, adding support for multi-target builds using Mono for [FSUnit](https://github.com/fsprojects/FsUnit).
