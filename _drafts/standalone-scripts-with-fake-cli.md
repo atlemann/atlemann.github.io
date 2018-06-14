@@ -1,6 +1,6 @@
 ---
 layout: post
-title:  "Stand alone scripts with FAKE CLI"
+title:  "Stand-alone scripts with FAKE CLI"
 categories: fsharp
 tags: f# fsharp fsi ubuntu linux development vscode ionide mono dotnet fake
 ---
@@ -13,8 +13,9 @@ Is your bash-fu not cutting it? Why not create executable F# script files instea
 2. Ionide extension
 3. Mono
 4. F# compiler
-5. Paket
-6. FAKE 5 CLI
+5. [Paket](https://github.com/fsprojects/Paket/releases/latest)
+6. [FAKE CLI](https://fake.build/fake-commandline.html)
+7. OS with [shebang](https://en.wikipedia.org/wiki/Shebang_(Unix)) support
 
 # Create an F# script file
 
@@ -48,7 +49,7 @@ val fsprojContents : string =
     <Tar"+[143 chars]
 ```
 
-When sending things to the `FSI`, it usually cuts long values like this and writes the number of chars left, e.g. `+[143 chars]`, instead. To view the full value write the name of the variable in the FSI window followed by `;;`.
+When sending things to the `FSI`, it usually cuts long values like this and writes the number of chars left, e.g. `+[143 chars]`, instead. To view the full value, write the name of the variable in the FSI window followed by `;;`.
 
 ```fsharp
 > fsprojContents;;
@@ -168,7 +169,7 @@ TargetFramework: netstandard2.0
 
 ## Changing the target frameworks
 
-To change the target framework we need some code for updating the XML and saving it to file. We also need to take the new target framework as argument:
+To change the target framework we need some code for updating the XML and saving it to file. We also need to take the new target framework as an argument:
 
 ```fsharp
 let setNodeValue value (node : XmlNode)=
@@ -182,16 +183,15 @@ let readXmlDocument path =
 let xmlDocument =
     readXmlDocument argv.[0]
 
-let targetFrameworkNode =
-    xmlDocument
-    |> tryGetTargetFramework
-    |> function
-        | Some node ->
-            setNodeValue argv.[1] node
-            xmlDocument.Save argv.[0]
-            printfn "'TargetFramework' for project '%s' changed to '%s'" argv.[0] argv.[1]
-        | None ->
-            printfn "Unable to find 'TargetFramework' tag"
+xmlDocument
+|> tryGetTargetFramework
+|> function
+    | Some node ->
+        setNodeValue argv.[1] node
+        xmlDocument.Save argv.[0]
+        printfn "'TargetFramework' for project '%s' changed to '%s'" argv.[0] argv.[1]
+    | None ->
+        printfn "Unable to find 'TargetFramework' tag"
 ```
 
 The following command will now change the target framework of `project.fsproj` to `netstandard2.1`. Success!
@@ -205,10 +205,10 @@ $ ./Script.fsx some/project.fsproj netstandard2.1
 
 If we want to be more fancy on the input arguments we can use [Argu](http://fsprojects.github.io/Argu/), but how can you do that in a script?
 
-1. With the help from vanilla [Paket](https://fsprojects.github.io/Paket/)
-2. With the help from [FAKE5 CLI](https://fake.build)
+1. Manually add references to `.lib` files downloaded by e.g. [Paket](https://fsprojects.github.io/Paket/)
+2. With the help from [FAKE CLI's](https://fake.build) integration with [Paket](https://fsprojects.github.io/Paket/)
 
-### Paket
+### Manually (with Paket)
 
 If you haven't already, add the following alias to your `~/.bash_aliases` file:
 
@@ -216,7 +216,7 @@ If you haven't already, add the following alias to your `~/.bash_aliases` file:
 alias paket='mono .paket/paket.exe'
 ```
 
-Then run the following commands to get a hold of `Paket` and make it download `Argu` to a packages folder next to your script.
+Then run the following commands to download `Paket` and make it download `Argu` to a packages folder next to your script.
 
 ```bash
 $ mkdir .paket
@@ -229,7 +229,7 @@ Then below the `shebang` in your script add the following to reference the libra
 
 ```fsharp
 #I __SOURCE_DIRECTORY__ // Makes sure relative paths in #r statements starts from here.
-#r "packages/Argu/lib/netstandard2.0/Argu.dll"
+#r "packages/Argu/lib/net45/Argu.dll"
 
 open Argu
 ```
@@ -253,7 +253,7 @@ Now you have `fake` as a command line tool which has a special `Paket` integrati
 #endif
 
 #I __SOURCE_DIRECTORY__
-#r "packages/Argu/lib/netstandard2.0/Argu.dll"
+#r "packages/Argu/lib/net45/Argu.dll"
 
 open Argu
 
@@ -355,7 +355,7 @@ So we try again with proper arguments:
 
 ```bash
 $ ./Script.fsx change some/Project.fsproj targetframework net461
-'TargetFramework' for project 'some/project.fsproj' changed to 'netstandard2.1'
+'TargetFramework' for project 'some/project.fsproj' changed to 'net461'
 ```
 
 And if you have a bunch of project files you want to update you can leverage bash like this:
@@ -364,4 +364,19 @@ And if you have a bunch of project files you want to update you can leverage bas
 $ find . -name "*.fsproj" -type f -exec ./Script.fsx change {} targetframework net461 \;
 ```
 
-where `{}` is the placeholder for the `find` command's results and `\;` means it invokes the script with a single result at a time.
+where `{}` is the placeholder for the `find` command's results and `\;` means it invokes the script once for every matching file.
+
+## Adding more dependencies
+
+To add more dependencies to your script, simply add them in the `#r "paket: //"` block.
+
+```fsharp
+#r "paket:
+nuget Argu
+nuget FSharp.Data
+//"
+```
+
+ To make `FAKE CLI` update the dependencies, delete the `Script.fsx.lock` file it has generated and re-run the script. It will then download the new dependency before running the script again.
+
+ That's it for now!
