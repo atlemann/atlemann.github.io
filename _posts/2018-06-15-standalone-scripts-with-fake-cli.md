@@ -368,7 +368,7 @@ where `{}` is the placeholder for the `find` command's results and `\;` means it
 
 ## Adding more dependencies
 
-To add more dependencies to your script, simply add them in the `#r "paket: //"` block.
+To add more dependencies to your script, simply add them in the `#r "paket: //"` block, then delete the `Script.fsx.lock` that has been generated and re-run the script. `FAKE CLI` will then download the new dependencies before running the rest of the script.
 
 ```fsharp
 #r "paket:
@@ -376,7 +376,4 @@ nuget Argu
 nuget FSharp.Data
 //"
 ```
-
- To make `FAKE CLI` update the dependencies, delete the `Script.fsx.lock` file it has generated and re-run the script. It will then download the new dependency before running the script again.
-
- That's it for now!
+That's it for now!
