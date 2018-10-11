@@ -2,7 +2,7 @@
 layout: post
 title:  "SAFE stack on Ubuntu 18.04 from scratch"
 categories: fsharp
-tags: f# fsharp ubuntu linux development vscode ionide mono dotnet safe
+tags: f# fsharp ubuntu linux development vscode ionide mono dotnet safe saturn giraffe suave elmish yarn nodejs code
 ---
 
 Now that a new Ubuntu LTS has been available for a while, it's about time to set it up for F# and this time some [SAFE stack](https://safe-stack.github.io) development as well.
