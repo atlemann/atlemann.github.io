@@ -50,6 +50,9 @@ echo "deb https://download.mono-project.com/repo/ubuntu stable-bionic main" | su
 # Yarn
 curl -sS https://dl.yarnpkg.com/debian/pubkey.gpg | sudo apt-key add -
 echo "deb https://dl.yarnpkg.com/debian/ stable main" | sudo tee /etc/apt/sources.list.d/yarn.list
+
+# Node
+curl -sL https://deb.nodesource.com/setup_8.x | sudo -E bash -
 ```
 
 ## Installing everything
@@ -65,10 +68,10 @@ Then we can install all the things!
 ```bash
 sudo apt-get -y install apt-transport-https
 sudo apt-get update
-sudo apt-get -y install fsharp dotnet-sdk-2.1 code fonts-firacode yarn
+sudo apt-get -y install fsharp dotnet-sdk-2.1 code fonts-firacode yarn nodejs
 ```
 
-Installing the `yarn` package should also install `node`. If you want to keep your `dotnet CLI` up to date, install the `dotnet-sdk-2.1` package, since it installs the newest available `dotnet-sdk-2.1.xxx` version when running `apt-get upgrade`. To only install specific versions (which can be installed side-by-side) install the specific `dotnet-sdk-2.1.xxx` package you want instead.
+If you want to keep your `dotnet CLI` up to date, install the `dotnet-sdk-2.1` package, since it installs the newest available `dotnet-sdk-2.1.xxx` version when running `apt-get upgrade`. To only install specific versions (which can be installed side-by-side) install the specific `dotnet-sdk-2.1.xxx` package you want instead.
 
 You can check which versions of the SDK you have installed by running:
 
@@ -213,3 +216,4 @@ Now just wait for the build to finish and your browser will open automatically t
 * [F# for fun and profit](https://fsharpforfunandprofit.com)
 * [VSCode distributed via apt](https://github.com/Microsoft/vscode/issues/2973)
 * [Installing Yarn](https://yarnpkg.com/lang/en/docs/install/#debian-stable)
+* [Installing Node](https://nodejs.org/en/download/package-manager/#debian-and-ubuntu-based-linux-distributions)
