@@ -362,3 +362,31 @@ Then in your main project file, in our case `MyFsProject.fs`, add `PrivateAssets
 ```
 
 Now when we run `fake build` again, the `MyCsProject` reference is gone in the `.nuspec` file and the `lib` folder in the NuGet package contains the `MyCsProject.dll`.
+
+### Publishing our NuGet
+
+FAKE doesn't have a helper for `dotnet nuget pack` yet, so we can just use `DotNet.exec` instead. Here we're getting our NuGet URL and API-KEY from environment variables:
+
+```fsharp
+Target.create "Push" (fun _ ->
+    let nugetServer = Environment.environVarOrFail "NUGET_WRITE_URL"
+    let apiKey = Environment.environVarOrFail "NUGET_WRITE_APIKEY"
+    
+    let result =
+        !!"**/Release/*.nupkg"
+        |> Seq.map (fun nupkg ->
+             Trace.trace (sprintf "Publishing nuget package: %s" nupkg)
+             nupkg, DotNet.exec id "nuget" (sprintf "push %s --source %s --api-key %s" nupkg nugetServer apiKey))
+        |> Seq.filter (fun (_, p) -> p.ExitCode <> 0)
+        |> List.ofSeq
+        
+    match result with
+    | [] -> ()
+    | failedAssemblies ->
+        failedAssemblies
+        |> List.map (fun (nuget, proc) -> 
+            sprintf "Failed to push NuGet package '%s'. Process finished with exit code %d." nuget proc.ExitCode)
+        |> String.concat System.Environment.NewLine
+        |> exn
+        |> raise)
+```
