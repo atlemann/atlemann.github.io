@@ -265,9 +265,13 @@ and for F# projects we also need this:
 ### Packing a NuGet
 
 ```fsharp
+open Fake.IO.FileSystemOperators
+
 let author = "My Name"
 let summary = "Silly NuGet package"
+let nugetProject = "src" @@ "MyFsNuget" @@ "MyFsNuget.fsproj"
 
+...
 ...
 
 let createPackTarget (semVerInfo : SemVerInfo) (project : string)=
@@ -290,3 +294,71 @@ let createPackTarget (semVerInfo : SemVerInfo) (project : string)=
                 Common = DotNet.Options.withCustomParams (Some customParams) p.Common })
             project)
 ```
+
+If we change the default branch name to, say, `1.2.3-beta.4` like so:
+
+```fsharp
+let branchName = Environment.environVarOrDefault "BRANCH_NAME" "1.2.3-beta.4"
+```
+
+and run the build script we get a `nupkg` which contains a `nuspec` with the following content:
+
+```xml
+<?xml version="1.0" encoding="utf-8"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2013/05/nuspec.xsd">
+  <metadata>
+    <id>MyFsNuget</id>
+    <version>1.2.3-beta.4</version>
+    <authors>My Name</authors>
+    <owners>My Name</owners>
+    <requireLicenseAcceptance>false</requireLicenseAcceptance>
+    <description>Silly NuGet package</description>
+    <dependencies>
+      <group targetFramework=".NETStandard2.0">
+        <dependency id="MyCsNuget" version="1.2.3-beta.4" exclude="Build,Analyzers" />
+        <dependency id="FSharp.Core" version="4.6.1" exclude="Build,Analyzers" />
+      </group>
+    </dependencies>
+  </metadata>
+</package>
+```
+
+What's sort of surprising here is that the referenced C# project we created earlier is actually specified as a NuGet dependency. So if you for whatever reason have a multi-project solution where you don't want to expose all the projects as separate NuGets, you can apply the following workaround as found in the comments in this [github issue](https://github.com/nuget/home/issues/3891).
+
+Create a file in your repository root called e.g. `pack.props` with this content:
+
+```xml
+<Project>
+  <PropertyGroup>
+    <TargetsForTfmSpecificBuildOutput>$(TargetsForTfmSpecificBuildOutput);CopyProjectReferencesToPackage</TargetsForTfmSpecificBuildOutput>
+  </PropertyGroup>
+  <Target Name="CopyProjectReferencesToPackage" DependsOnTargets="ResolveReferences">
+    <ItemGroup>
+      <BuildOutputInPackage Include="@(ReferenceCopyLocalPaths-&gt;WithMetadataValue('ReferenceSourceTarget', 'ProjectReference')-&gt;WithMetadataValue('PrivateAssets', 'All'))" />
+    </ItemGroup>
+  </Target>
+</Project>
+```
+
+Then in your main project file, in our case `MyFsProject.fs`, add `PrivateAssets="All"` to the project references you want to include in the main NuGet package and import `pack.props`:
+
+```xml
+<?xml version="1.0" encoding="utf-8"?>
+<Project Sdk="Microsoft.NET.Sdk">
+  <Import Project="../../pack.props"/>
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="AssemblyInfo.fs" />
+    <Compile Include="Library.fs" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\MyCsNuget\MyCsNuget.csproj" PrivateAssets="All" />
+  </ItemGroup>
+  <Import Project="..\..\.paket\Paket.Restore.targets" />
+</Project>
+```
+
+Now when we run `fake build` again, the `MyCsProject` reference is gone in the `.nuspec` file and the `lib` folder in the NuGet package contains the `MyCsProject.dll`.
