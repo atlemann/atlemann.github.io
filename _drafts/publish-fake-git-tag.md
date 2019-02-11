@@ -9,7 +9,7 @@ In this post we're going to see how we can make a FAKE script detect when to do 
 
 In this example our release will be a NuGet package, but this could be a docker image or something else. For public NuGet packages, using FAKE's [Release notes helper](https://fake.build/apidocs/v5/fake-core-releasenotes.html) to define the release version including release notes is an alternative approach.
 
-We're going to create a small sample project with two classlibs and a test project.
+We're going to create a small sample project with two classlibs and a test project. The code for the post can be found [here](https://github.com/atlemann/MyNuget/tree/master).
 
 ## Tools we're going to use
 
@@ -387,8 +387,8 @@ Target.create "Push" (fun _ ->
     let result =
         !!"**/Release/*.nupkg"
         |> Seq.map (fun nupkg ->
-             Trace.trace (sprintf "Publishing nuget package: %s" nupkg)
-             nupkg, DotNet.exec id "nuget" (sprintf "push %s --source %s --api-key %s" nupkg nugetServer apiKey))
+            Trace.trace (sprintf "Publishing nuget package: %s" nupkg)
+            (nupkg, DotNet.exec id "nuget" (sprintf "push %s --source %s --api-key %s" nupkg nugetServer apiKey)))
         |> Seq.filter (fun (_, p) -> p.ExitCode <> 0)
         |> List.ofSeq
 
