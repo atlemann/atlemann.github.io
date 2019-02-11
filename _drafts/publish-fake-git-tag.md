@@ -158,7 +158,7 @@ specified here as `BRANCH_NAME`:
 
 ### Parsing the tag using FAKE
 
-FAKE has a [SemVer helper](https://fake.build/apidocs/v5/fake-core-semver.html) which can check and parse SemVer strings. Here we'll use that to create a simple active pattern which we can use for deciding what to do for a given `BRANCH_NAME`. 
+FAKE has a [SemVer helper](https://fake.build/apidocs/v5/fake-core-semver.html) which can validate and parse SemVer strings. Here we'll use that to create a simple active pattern which we can use for deciding what to do for a given `BRANCH_NAME`. 
 
 ```fsharp
 open Fake.Core
@@ -312,7 +312,7 @@ If we change the default branch name to, say, `1.2.3-beta.4` like so:
 let branchName = Environment.environVarOrDefault "BRANCH_NAME" "1.2.3-beta.4"
 ```
 
-and run the build script we get a `nupkg` which contains a `nuspec` with the following content:
+and comment out the `Push` target and then run the build script we get a `MyFsProject.nupkg` which contains a `nuspec` with the following content:
 
 ```xml
 <?xml version="1.0" encoding="utf-8"?>
@@ -403,3 +403,11 @@ Target.create "Push" (fun _ ->
         |> exn
         |> raise)
 ```
+
+That's it! Now you can publish a new NuGet package as simple as `git tag 1.2.3` (and push) in any CI environment you want.
+
+Similar resources:
+
+* [Super Simple Git Tagging & Releases in Azure DevOps](https://montemagno.com/super-simple-git-tagging-releases-in-azure-devops/)
+* [How to trigger VSTS build and release when pushing tags?](https://stackoverflow.com/questions/51662042/how-to-trigger-vsts-build-and-release-when-pushing-tags)
+* [Tag Driven Release Automation](https://www.cutehacks.com/blog/2015/4/23/tag-driven-release-automation)
