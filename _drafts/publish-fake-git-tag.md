@@ -123,6 +123,7 @@ This will import the dependencies in the `Build` group in our `paket.dependencie
 ```fsharp
 open Fake.Core
 open Fake.DotNet
+open Fake.IO
 open Fake.IO.Globbing.Operators
 open Fake.IO.FileSystemOperators
 ```
