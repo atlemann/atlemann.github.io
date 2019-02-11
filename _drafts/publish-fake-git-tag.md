@@ -1,26 +1,25 @@
 ---
 layout: post
-title:  "Triggering release with git tag using FAKE"
+title:  "Make FAKE release on git tag"
 categories: fsharp
-tags: f# fsharp dotnet CI TeamCity
+tags: f# fsharp dotnet CI TeamCity git tag release
 ---
 
-In this post we're going to see how we can make a FAKE script detect when to do only build and test and when to pack and ship using a semver formatted git tag.
+In this post we're going to see how we can make a FAKE script detect when to do only build and test and when to pack and ship using a `SemVer` formatted git tag. Then you can have a single build configuration on your CI server and have FAKE take care of which type of build to run.
 
-In this example our release will be a NuGet package, but this could be a docker image or something else. For public NuGet packages, using FAKE's [Release notes helper](https://fake.build/apidocs/v5/fake-core-releasenotes.html) to define the release version might be preferable if you want to include release notes.
+In this example our release will be a NuGet package, but this could be a docker image or something else. For public NuGet packages, using FAKE's [Release notes helper](https://fake.build/apidocs/v5/fake-core-releasenotes.html) to define the release version including release notes is an alternative approach.
 
 We're going to create a small sample project with two classlibs and a test project.
 
-## Tools
+## Tools we're going to use
 
 * [FAKE](https://fake.build)
 * [Paket](https://fsprojects.github.io/Paket/)
 * [dotnet CLI](https://www.microsoft.com/net/learn/get-started/linuxubuntu)
-* [TeamCity](https://www.jetbrains.com/teamcity/)
 
 ## FAKE and Paket as global .NET Core tools
 
-Now that both FAKE and Paket have dotnet tools we can just install those to avoid all that bootstrapping that was required before. No need for mono either, unless we're doing multi-target builds on linux.
+Now that both FAKE and Paket have dotnet tools we can just install those to avoid all that bootstrapping that was required before. No need for `mono` either, unless we're doing multi-target builds on linux.
 
 ```bash
 $ dotnet tool install -g fake-cli
@@ -35,13 +34,6 @@ $ fake build
 ```
 
 in your command line to restore packages and run a FAKE build script.
-
-## Required FAKE tools
-
-* `Fake.Core.Environment`: For getting the git tag environment variable
-* `Fake.Core.Semver`: For parsing the git tag
-* `Fake.DotNet.Cli`: For building, packing and publishing a NuGet package
-* `Fake.DotNet.AssemblyInfoFile`: For writing the asssembly info files
 
 ## Creating a sample solution
 
@@ -78,11 +70,20 @@ It will also add
 <Import Project="..\..\.paket\Paket.Restore.targets" />
 ```
 
-to all your project files.
+to all your project files so Paket can hook on to the build.
 
-## Specifying the FAKE dependencies
+## Adding the FAKE dependencies
 
-We're going to add the FAKE modules we require to a `Build` group in `paket.dependencies` so we can easily reference it in the `build.fsx` file.
+FAKE 5 has split every module into a separate NuGet package, so we're going to need a couple of them:
+
+* `Fake.Core.Environment`: For getting the git tag environment variable
+* `Fake.Core.Semver`: For parsing the git tag
+* `Fake.Core.Target`: For creating build steps
+* `Fake.DotNet.AssemblyInfoFile`: For writing the asssembly info files
+* `Fake.DotNet.Cli`: For building, packing and publishing a NuGet package
+* `Fake.IO.FileSystem`: For globbing and file system operators
+
+We're going to add the FAKE modules to a `Build` group in `paket.dependencies` so we can easily reference it in the `build.fsx` file.
 
 (`Microsoft.NET.Test.Sdk` and `YoloDev.Expecto.TestSdk` enables running the `Expecto` tests by invoking `dotnet test`)
 
@@ -117,7 +118,7 @@ Now we can start creating our FAKE script. Create a new file called `build.fsx` 
 #endif
 ```
 
-This will import the dependencies in the `Build` group in our `paket.dependencies` file and enable intellisense. Now we can just open the dependencies we need:
+This will import the dependencies in the `Build` group in our `paket.dependencies` file and enable intellisense. Now we can just open the dependencies we need (after running `fake build` once to download them):
 
 ```fsharp
 open Fake.Core
@@ -136,11 +137,11 @@ To decide if we're going to release or not we need the following steps:
 
 ### Triggering a build when tagging
 
-In this example we're going to use `TeamCity` as CI server. To build a tag we must `Enable to use tags in the branch specification` in the `VCS root` settings:
+In this example we're going to use `TeamCity` as CI server. To build a tag we must edit the branch specification and tick `Enable to use tags in the branch specification` in the `VCS root` settings:
 
 ![VCS root settings]({{ "/assets/publish_fake_git_tag/tags_as_branch.png" }})
 
-This will give you builds with the tag as the name of the "branch", e.g. like the version numbers here:
+This will make TeamCity trigger builds when a new tag is pushed, with the tag as the name of the "branch" (e.g. the version numbers seen here):
 
 ![VCS root settings]({{ "/assets/publish_fake_git_tag/tc_branch_name.png" }})
 
@@ -156,7 +157,7 @@ specified here as `BRANCH_NAME`:
 
 ### Parsing the tag using FAKE
 
-FAKE has a [SemVer helper](https://fake.build/apidocs/v5/fake-core-semver.html) which can check and parse SemVer strings into a record type. Here we'll use that to create a simple active pattern which we can use for deciding what to do for a given `BRANCH_NAME`. 
+FAKE has a [SemVer helper](https://fake.build/apidocs/v5/fake-core-semver.html) which can check and parse SemVer strings. Here we'll use that to create a simple active pattern which we can use for deciding what to do for a given `BRANCH_NAME`. 
 
 ```fsharp
 open Fake.Core
@@ -178,18 +179,22 @@ let branchName = Environment.environVarOrDefault "BRANCH_NAME" ""
 Finally, we'll use the active pattern together with the branch name to decide what to do. As you can see, both the `AssemblyInfo` and `Pack` targets requires the version which is conveniently provided by the active pattern.
 
 ```fsharp
+let projectOrSln = "src" </> "MyFsNuget" </> "MyFsNuget.fsproj"
+
+...
+...
+
 open Fake.Core.TargetOperators
 
 let buildTarget =
     match branchName with
     | Release version ->
         createAssemblyInfoTarget version
-        createPackTarget version nugetProject
+        createPackTarget version projectOrSln
         Target.create "Release" ignore
 
         "Clean"
         ==> "AssemblyInfo"
-        ==> "Restore"
         ==> "Build"
         ==> "Test"
         ==> "Pack"
@@ -200,7 +205,6 @@ let buildTarget =
         Target.create "CI" ignore
 
         "Clean"
-        ==> "Restore"
         ==> "Build"
         ==> "Test"
         ==> "CI"
@@ -212,9 +216,14 @@ The `buildTarget` value will be either `Release` or `CI` depending on which bran
 
 ### Updating the assembly info
 
-Here we're passing in the parsed semver info when creating the assembly info target. Assembly info only supports `major.minor.patch` strings without any `-rc.1 or -beta`, so we extract what we need from the `SemVerInfo` and update the assembly info for both F# and C# projects.
+Here we're passing in the parsed semver info when creating the assembly info target. Assembly info only supports `major.minor.patch` strings without any `-rc.1` or `-beta`, so we extract what we need from the `SemVerInfo` and update the assembly info for both F# and C# projects.
 
 ```fsharp
+let summary = "Silly NuGet package"
+let product = "MySillyNuget"
+...
+...
+
 let createAssemblyInfoTarget (semverInfo : SemVerInfo) =
 
     let assemblyVersion =
@@ -269,12 +278,13 @@ open Fake.IO.FileSystemOperators
 
 let author = "My Name"
 let summary = "Silly NuGet package"
-let nugetProject = "src" @@ "MyFsNuget" @@ "MyFsNuget.fsproj"
 
 ...
 ...
 
-let createPackTarget (semVerInfo : SemVerInfo) (project : string)=
+/// Pass a single project to pack only that one.
+/// Pass the .sln to pack all non-test projects.
+let createPackTarget (semVerInfo : SemVerInfo) (projectOrSln : string)=
     Target.create "Pack" (fun _ ->
 
         // MsBuild uses ; and , as properties separator in the cli
@@ -292,7 +302,7 @@ let createPackTarget (semVerInfo : SemVerInfo) (project : string)=
             { p with
                 Configuration = DotNet.BuildConfiguration.Release
                 Common = DotNet.Options.withCustomParams (Some customParams) p.Common })
-            project)
+            projectOrSln)
 ```
 
 If we change the default branch name to, say, `1.2.3-beta.4` like so:
@@ -323,7 +333,9 @@ and run the build script we get a `nupkg` which contains a `nuspec` with the fol
 </package>
 ```
 
-What's sort of surprising here is that the referenced C# project we created earlier is actually specified as a NuGet dependency. So if you for whatever reason have a multi-project solution where you don't want to expose all the projects as separate NuGets, you can apply the following workaround as found in the comments in this [github issue](https://github.com/nuget/home/issues/3891).
+Here we can see that the referenced C# project is actually added as a NuGet dependency, which means you would have to pack and push that one as well. If you pass a `.sln` file to `dotnet pack` it will pack all non-test projects in the solution as mentioned in the `createPackTarget` function defined above.
+
+However, if you have a multi-project solution where you don't want to expose all the projects as separate NuGets, you can apply the following workaround, as found in the comments in this [github issue](https://github.com/nuget/home/issues/3891), to include the private `.dlls` in the main NuGet package instead.
 
 Create a file in your repository root called e.g. `pack.props` with this content:
 
@@ -365,13 +377,13 @@ Now when we run `fake build` again, the `MyCsProject` reference is gone in the `
 
 ### Publishing our NuGet
 
-FAKE doesn't have a helper for `dotnet nuget pack` yet, so we can just use `DotNet.exec` instead. Here we're getting our NuGet URL and API-KEY from environment variables:
+NuGet packages can be pushed using `dotnet nuget push` which we can invoke using FAKE's `DotNet.exec` helper. Here we're getting the NuGet feed URL and API-KEY from environment variables and then we search all `Release` folders for `.nupkg` files to push:
 
 ```fsharp
 Target.create "Push" (fun _ ->
     let nugetServer = Environment.environVarOrFail "NUGET_WRITE_URL"
     let apiKey = Environment.environVarOrFail "NUGET_WRITE_APIKEY"
-    
+
     let result =
         !!"**/Release/*.nupkg"
         |> Seq.map (fun nupkg ->
@@ -379,7 +391,7 @@ Target.create "Push" (fun _ ->
              nupkg, DotNet.exec id "nuget" (sprintf "push %s --source %s --api-key %s" nupkg nugetServer apiKey))
         |> Seq.filter (fun (_, p) -> p.ExitCode <> 0)
         |> List.ofSeq
-        
+
     match result with
     | [] -> ()
     | failedAssemblies ->
