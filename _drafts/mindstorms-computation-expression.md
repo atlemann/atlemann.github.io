@@ -169,10 +169,48 @@ Last but not least, we have to create an instance of the builder like this:
 let mindstorms = MindstormsBuilder()
 ```
 
+## Creating the command
 
+Now that we have a way to creat a list of `BricActions`, we need a way to update a command with them. This is done first creating a command from the Brick and then mutating it by invoking different methods on it. Below we have an update function which translates from `BricAction` to the correct method on the `Command` instance.
 
+```fsharp
+let updateCommand : Command -> BrickAction -> Command =
+    fun command actions ->
+    match actions with
+    | MotorAction (port, action) ->
+        let ports =
+            port
+            |> List.map OutputPort.toEnum
+            |> List.reduce (|||)
 
+        match action with
+        | StartMotor -> command.StartMotor(ports)
+        | StopMotor -> command.StopMotor(ports, true)
+        | TurnMotorAtPower x -> command.TurnMotorAtPower(ports, x.Power)
+        | TurnMotorAtPowerForTime x -> command.TurnMotorAtPowerForTime(ports, x.Power, x.Time, x.Break |> BreakMode.asBool)
+        | StepMotorAtPower x -> command.StepMotorAtPower(ports, x.Power, x.Steps, x.Break |> BreakMode.asBool)
+        | StepMotorSync x -> command.StepMotorSync(ports, x.Power, x.TurnRatio, x.Steps, x.Break |> BreakMode.asBool)
 
+    command
+```
+
+And we can simply `fold` the list of `BricActions` over the `Command` like this:
+
+```fsharp
+let createCommand : Brick -> BrickAction seq -> Command =
+    fun brick actions ->
+    let cmd = brick.CreateCommand(CommandType.DirectNoReply)
+    Seq.fold updateCommand cmd actions
+```
+
+which we then can send to the brick:
+
+```fsharp
+let invokeCommand : Brick -> BrickAction seq -> Task =
+    fun brick actions ->
+    createCommand brick actions
+    |> brick.SendCommandAsync
+```
 
 
 
