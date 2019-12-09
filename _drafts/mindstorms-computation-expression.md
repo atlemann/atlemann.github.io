@@ -5,41 +5,72 @@ categories: fsharp
 tags: f# fsharp linux lego mindstorms development dotnet
 ---
 
-This is part of [F# Advent calendar 2019](https://sergeytihon.com/2019/11/05/f-advent-calendar-in-english-2019/).
+This is part of [F# Advent calendar 2019](https://sergeytihon.com/2019/11/05/f-advent-calendar-in-english-2019/). Go and check out all the other great posts and thank you Sergey Tihon for organizing!
 
-We're going to play around with some gPRC streaming and Lego Mindstorms, because why not.
+We're going to play around with some Lego Mindstorms. Luckily, there's already a .NET API for this made by [Brian Peek](https://github.com/BrianPeek/legoev3). Sadly, it's no longer under active development and haven't been for quite some time. Since I'm on linux, I would like to use .NET Core and new SDK project files, so I made a fork where I patched it a bit and replaced the events with Observables, since events are terrible. It's using [HidSharp](https://www.nuget.org/packages/HidSharp) to communicate over Bluetooth to the Mindstorms brick on Ubuntu. It can be found [here](https://github.com/atlemann/RxMindstorms).
 
-First off is communicating with the Mindstorms brick. There is already a .NET API for this [here](https://github.com/BrianPeek/legoev3). However, it seems to be dead and we want .NET Core and new SDK project files. So I forked it,  patched it a bit slapped some Observables in there, since events are terrible. It can be found [here](https://github.com/atlemann/RxMindstorms). It is C# though and too much to rewrite the whole thing, so we're going to put some F# on top of it instead. It's using [HidSharp](https://www.nuget.org/packages/HidSharp) to communicate over Bluetooth to the Mindstorms brick on Ubuntu.
+In this post we're going try to make a DSL in F# on top of the existing C# code.
 
-## Making a Mindstorms DSL in F#
+## Lego Mindstorms
 
-We're now going to take a look at how to create an F# DSL on top of the existing C# API. For this we're going to use customized computation expressions for the different devices to try to replicate some of the device controls in the Mindstorms drag'n drop programming interface.
+The Lego Mindstorms brick has eight ports marked A-D and 1-4. The A-D ports can both send and receive input data. 1-4 can only receive. The C# API defines a `Command` which can be configured with multiple actions before sending it to the Brick to be executed in order. There's also an observable which pushes responses from the Brick's devices, e.g. push sensor button presses or color sensor data. We're going to try to make a DSL to configure the actions to apply to a `Command`, but first we'll define the ports:
 
-## Motors
+```fsharp
+type OutputPort =
+    | A
+    | B
+    | C
+    | D
+    | All
 
-Let's define what the different motor actions are by picking a subset of the available C# commands and their arguments. We also need to define the port somewhere, hence the BrickActions type.
+type InputPort =
+    | One
+    | Two
+    | Three
+    | Four
+    | A
+    | B
+    | C
+    | D
+```
+
+### Motor actions
+
+Let's define what the different motor actions are by picking a subset of the available C# commands and their arguments.
+
+```fsharp
+/// Should the break be applied at the end of the action?
+type BreakMode =
+    | Break
+    | Coast
+
+/// A sub-set of motor actions that can be added to a command
+type MotorAction =
+    | StartMotor
+    | StopMotor
+    | StepMotorAtPower of {| Power:int; Steps:uint32; Break:BreakMode |}
+    | TurnMotorAtPower of {| Power:int |}
+    | TurnMotorAtPowerForTime of {| Power:int; Time:uint32; Break:BreakMode |}
+    | StepMotorSync of {| Power:int; TurnRatio:int16; Steps:uint32; Break:BreakMode |}
+```
+
+We also need to define the port somewhere. Since we can have different devices connected to the ports, we'll make a top level `BrickActions` type.
 
 ```fsharp
 type BrickAction =
+    // Output port is a list, since an action can be applied to multiple motors simultaneously
     | MotorAction of OutputPort list * MotorAction
-and MotorAction =
-    | StartMotor
-    | StopMotor
-    | StepMotorAtPower of {| Power:int; Steps:uint32; Break:bool |}
-    | TurnMotorAtPower of {| Power:int |}
-    | TurnMotorAtPowerForTime of {| Power:int; Time:uint32; Break:bool |}
-    | StepMotorSync of {| Speed:int; TurnRatio:int16; Steps:uint32; Break:bool |}
 ```
 
-Now we need a nice way to define which of these actions to perform. What we would like is something like this:
+We need a nice way to define which of these actions to perform. What we're aiming for is something like this:
 
 ```fsharp
 let commands = mindstorms {
     Turn (Motor OutputPort.A) With Power 50
     Turn (Motors [ OutputPort.A; OutputPort.B ]) With Power 50
     TurnForTime 1000u (Motors [ OutputPort.A; OutputPort.B ]) With Power 50 Then Break
-    Step (Motors [ OutputPort.A; OutputPort.B ]) For 180u Steps With Power 50 Then NoBreak
-    StepSync (Motors [ OutputPort.A; OutputPort.B ]) For 180u Steps With Power 50 And TurnRatio 42s Then NoBreak
+    Step (Motors [ OutputPort.A; OutputPort.B ]) For 180u Steps With Power 50 Then Coast
+    StepSync (Motors [ OutputPort.A; OutputPort.B ]) For 180u Steps With Power 50 And TurnRatio 42s Then Coast
     Start (Motor OutputPort.A)
     Stop (Motor OutputPort.A)
     }
@@ -85,7 +116,7 @@ member __.Turn(currentState, motor:MotorPorts, _:With, _:Power, power:int) =
     }
 ```
 
-Here `_:With` and `_:Power` are just used as place holders make it look like a proper sentence.
+Here `_:With` and `_:Power` are just used as placeholders make it look like a proper sentence.
 
 Now if we look at the 3rd line we have this:
 
@@ -93,14 +124,14 @@ Now if we look at the 3rd line we have this:
 TurnForTime 1000u (Motors [ OutputPort.A; OutputPort.B ]) With Power 50 Then Break
 ```
 
-The `Motors` keyword is already defined, but we need `Then` and `Break` as well. We can see from the 4th that there is a `NoBreak` keyword as well, so we get this:
+The `Motors` keyword is already defined, but we need `Then` and `Break` as well. We can see from the 4th that there is a `Coast` keyword as well, so we get this:
 
 ```
 type Then = Then
 
 type BreakMode =
     | Break
-    | NoBreak
+    | Coast
 ```
 
 Now we can define the `TurnForTime` operation like this:
