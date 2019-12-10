@@ -230,7 +230,7 @@ And we can simply `fold` the list of `BricActions` over the `Command` like this:
 ```fsharp
 let createCommand : Brick -> BrickAction seq -> Command =
     fun brick actions ->
-    let cmd = brick.CreateCommand(CommandType.DirectNoReply)
+    let cmd = brick.CreateCommand(CommandType.DirectReply)
     Seq.fold updateCommand cmd actions
 ```
 
