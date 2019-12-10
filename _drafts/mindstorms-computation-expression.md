@@ -387,14 +387,14 @@ async {
     do! brick
         |> mindstorms {
             TurnForTime 5000u (Motors [ OutputPort.A; OutputPort.B ]) With Power 50 Then Break
-            Start (Motor OutputPort.A)
+            Start (Motors [ OutputPort.A; OutputPort.B ])
             }
 
     do! brick
         |> mindstorms {
             TurnForTime 2000u (Motors [ OutputPort.A; OutputPort.B ]) With Power 50 Then Break
             TurnForTime 2000u (Motors [ OutputPort.A; OutputPort.B ]) With Power -50 Then Break
-            Stop (Motor OutputPort.A)
+            Stop (Motors [ OutputPort.A; OutputPort.B ])
             }
 }
 |> Async.RunSynchronously
