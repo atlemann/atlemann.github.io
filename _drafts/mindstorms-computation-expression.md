@@ -1,6 +1,6 @@
 ---
 layout: post
-title:  "Mindstorms F# DSL over gRPC"
+title:  "Creating a Lego Mindstorms DSL in F#"
 categories: fsharp
 tags: f# fsharp linux lego mindstorms development dotnet
 ---
