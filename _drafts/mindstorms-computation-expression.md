@@ -400,9 +400,10 @@ async {
 |> Async.RunSynchronously
 ```
 
-
 ## Conclusion
 
 We've seen how to make a DSL in F# using custom computation expressions, which are quite flexible and powerful. This was just a silly example, but it shows we could almost write plain english to configure the commands. It did get a bit more complicated when wiring it all up though.
 
 This is all I had time for unfortunately. Hope you learned something. Thanks for reading!
+
+![Movie gif]({{ "/assets/mindstorms_dsl/mindstorms.gif" }})
