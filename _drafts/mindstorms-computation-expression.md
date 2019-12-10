@@ -7,13 +7,13 @@ tags: f# fsharp linux lego mindstorms development dotnet
 
 This is part of [F# Advent calendar 2019](https://sergeytihon.com/2019/11/05/f-advent-calendar-in-english-2019/). Go and check out all the other great posts and thank you Sergey Tihon for organizing!
 
-We're going to play around with some Lego Mindstorms. Luckily, there's already a .NET API for this made by [Brian Peek](https://github.com/BrianPeek/legoev3). Sadly, it's no longer under active development and haven't been for quite some time. Since I'm on linux, I would like to use .NET Core and new SDK project files, so I made a fork where I patched it a bit and replaced the events with Observables, because why not. It's using [HidSharp](https://www.nuget.org/packages/HidSharp) to communicate over USB to the Mindstorms brick on Ubuntu. It can be found [here](https://github.com/atlemann/RxMindstorms).
+We're going to play around with some Lego Mindstorms. Luckily, there's already a .NET API for this made by [Brian Peek](https://github.com/BrianPeek/legoev3). Sadly, it's no longer under active development and haven't been for quite some time. Since I'm on linux, I would like to use .NET Core and new SDK project files, so I made a fork where I patched it a bit and replaced the events with Observables, because why not. It's using [HidSharp](https://www.nuget.org/packages/HidSharp) to connect to the Mindstorms brick via the USB port. It can be found [here](https://github.com/atlemann/RxMindstorms).
 
 In this post we're going try to make a DSL in F# on top of the existing C# code.
 
 ## Lego Mindstorms
 
-The Lego Mindstorms brick has eight ports, marked A-D and 1-4. The A-D ports can both send and receive input data. 1-4 can only receive. The C# API defines a `Command` which can be configured with multiple actions before sending it to the Brick to be executed in order. There's also an observable which pushes responses from the Brick's devices, e.g. push sensor button presses or color sensor data. We're going to try to make a DSL to configure the actions to apply to a `Command`, but first we'll define the ports:
+The Lego Mindstorms brick has eight ports, four marked A-D and four marked 1-4. The A-D ports can both send and receive input data. 1-4 can only receive. The C# API defines a `Command` which can be configured with multiple actions before sending it to the Brick to be executed in order. There's also an observable which pushes responses from the Brick's devices, e.g. push sensor button presses or color sensor data. We're going to try to make a DSL to configure the actions to apply to a `Command`, but first we'll define the ports:
 
 ```fsharp
 type OutputPort =
@@ -352,8 +352,57 @@ waitUntilPushButton ()
 |> Async.RunSynchronously
 ```
 
+## Adding the 'Run' method
+
+The computation expressions also have a `Run` member that can be implemented to change the state before returning it. Say we have the following code:
+
+```fsharp
+let snippet : BrickActions seq =
+    mindstorms {
+        TurnForTime 1000u (Motors [ OutputPort.A; OutputPort.B ]) With Power 50 Then Break
+        Start (Motor OutputPort.A)
+    }
+```
+
+`snippet` is of type `BrickActions seq`.
+
+If we implement `Run` like this:
+
+```fsharp
+member __.Run(actions:BrickActions seq) =
+
+    fun (brick:Brick) ->
+        let emptyCommand = brick.CreateCommand(CommandType.DirectReply)
+
+        actions
+        |> Seq.fold updateCommand emptyCommand
+        |> brick.SendCommandAsync
+        |> Async.AwaitTask
+```
+
+`snippet` would be of type `Brick -> Async<unit>` instead and we could run them like this:
+
+```fsharp
+async {
+    do! brick
+        |> mindstorms {
+            TurnForTime 5000u (Motors [ OutputPort.A; OutputPort.B ]) With Power 50 Then Break
+            Start (Motor OutputPort.A)
+            }
+
+    do! brick
+        |> mindstorms {
+            TurnForTime 2000u (Motors [ OutputPort.A; OutputPort.B ]) With Power 50 Then Break
+            TurnForTime 2000u (Motors [ OutputPort.A; OutputPort.B ]) With Power -50 Then Break
+            Stop (Motor OutputPort.A)
+            }
+}
+|> Async.RunSynchronously
+```
+
+
 ## Conclusion
 
 We've seen how to make a DSL in F# using custom computation expressions, which are quite flexible and powerful. This was just a silly example, but it shows we could almost write plain english to configure the commands. It did get a bit more complicated when wiring it all up though.
 
-This is all I had time for unfortunately. Hope you learned something.
+This is all I had time for unfortunately. Hope you learned something. Thanks for reading!
