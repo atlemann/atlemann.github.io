@@ -7,13 +7,13 @@ tags: f# fsharp linux lego mindstorms development dotnet
 
 This is part of [F# Advent calendar 2019](https://sergeytihon.com/2019/11/05/f-advent-calendar-in-english-2019/). Go and check out all the other great posts and thank you Sergey Tihon for organizing!
 
-We're going to play around with some Lego Mindstorms. Luckily, there's already a .NET API for this made by [Brian Peek](https://github.com/BrianPeek/legoev3). Sadly, it's no longer under active development and haven't been for quite some time. Since I'm on linux, I would like to use .NET Core and new SDK project files, so I made a fork where I patched it a bit and replaced the events with Observables, since events are terrible. It's using [HidSharp](https://www.nuget.org/packages/HidSharp) to communicate over Bluetooth to the Mindstorms brick on Ubuntu. It can be found [here](https://github.com/atlemann/RxMindstorms).
+We're going to play around with some Lego Mindstorms. Luckily, there's already a .NET API for this made by [Brian Peek](https://github.com/BrianPeek/legoev3). Sadly, it's no longer under active development and haven't been for quite some time. Since I'm on linux, I would like to use .NET Core and new SDK project files, so I made a fork where I patched it a bit and replaced the events with Observables, because why not. It's using [HidSharp](https://www.nuget.org/packages/HidSharp) to communicate over USB to the Mindstorms brick on Ubuntu. It can be found [here](https://github.com/atlemann/RxMindstorms).
 
 In this post we're going try to make a DSL in F# on top of the existing C# code.
 
 ## Lego Mindstorms
 
-The Lego Mindstorms brick has eight ports marked A-D and 1-4. The A-D ports can both send and receive input data. 1-4 can only receive. The C# API defines a `Command` which can be configured with multiple actions before sending it to the Brick to be executed in order. There's also an observable which pushes responses from the Brick's devices, e.g. push sensor button presses or color sensor data. We're going to try to make a DSL to configure the actions to apply to a `Command`, but first we'll define the ports:
+The Lego Mindstorms brick has eight ports, marked A-D and 1-4. The A-D ports can both send and receive input data. 1-4 can only receive. The C# API defines a `Command` which can be configured with multiple actions before sending it to the Brick to be executed in order. There's also an observable which pushes responses from the Brick's devices, e.g. push sensor button presses or color sensor data. We're going to try to make a DSL to configure the actions to apply to a `Command`, but first we'll define the ports:
 
 ```fsharp
 type OutputPort =
@@ -82,7 +82,7 @@ Our builder's state will be a list of `BrickActions` and we'll start with the re
 
 ```fsharp
 type MindstormsBuilder() =
-        member __.Yield(_) = Seq.empty
+    member __.Yield(_) = Seq.empty
 ```
 
 Let's look at the 1st line in the `commands` definition. Here we have some words we have to define, `Motor`, `With` and `Power`. A single command can also combine multiple ports, hence we have to support defining a list of ports as well. Hence the `Motor` type has to look something like this:
@@ -202,17 +202,17 @@ let mindstorms = MindstormsBuilder()
 
 ## Creating the command
 
-Now that we have a way to creat a list of `BricActions`, we need a way to update a command with them. This is done first creating a command from the Brick and then mutating it by invoking different methods on it. Below we have an update function which translates from `BricAction` to the correct method on the `Command` instance.
+Now that we have a way to creat a list of `BricActions`, we need a way to update a command with them. This is done by first creating a command from the Brick and then mutating it by invoking different methods on it. Below we have an update function which translates from `BricAction` to the correct method on the `Command` instance.
 
 ```fsharp
 let updateCommand : Command -> BrickAction -> Command =
     fun command actions ->
     match actions with
-    | MotorAction (port, action) ->
+    | MotorAction (ports, action) ->
         let ports =
-            port
-            |> List.map OutputPort.toEnum
-            |> List.reduce (|||)
+            ports
+            |> List.map OutputPort.toEnum // Map to the C# enum flags
+            |> List.reduce (|||) // Bitwise OR
 
         match action with
         | StartMotor -> command.StartMotor(ports)
@@ -237,356 +237,123 @@ let createCommand : Brick -> BrickAction seq -> Command =
 which we then can send to the brick:
 
 ```fsharp
-let invokeCommand : Brick -> BrickAction seq -> Task =
+let invokeCommand : Brick -> BrickAction seq -> Task<System.Reactive.Unit> =
     fun brick actions ->
     createCommand brick actions
     |> brick.SendCommandAsync
 ```
 
+## Creating a simple program
 
+Now we'll try to create a simple program where we turn the engines when the push button is pressed and stop the engines when it's released.
 
-
-
-
-First we'll need a state for the computation expression. It must be a record type, since we want to specify a set of parameters to pass to the command.
+First we have to connect to the brick:
 
 ```fsharp
-type MotorState =
-    { OutputPort : OutputPort list
-      TurnRatio : int16 option
-      Power : int option
-      Step : uint32 option
-      Ms : uint32 option
-      Break : bool option }
+    let comm = UsbCommunication("MyLegoEV3");
+    let responseManager = ResponseManager();
+    let brick = Brick(comm, responseManager);
 
-module MotorState =
-
-    let empty =
-        { OutputPort = []
-          TurnRatio = None
-          Power = None
-          Step = None
-          Ms = None
-          Break = None }
+    let connection =
+       brick.Connect()
+       |> Observable.subscribe ignore
 ```
 
-Since a motor action can be performed on multiple motors simultaneously, the `OutputPort` has to be a list. The rest of the parameters are optional depending on the action we want to perform. The `empty` function is needed to initialize the state of the builder in the `Yield` member.
-
-We're going to use the [CustomOperation](https://docs.microsoft.com/en-us/dotnet/fsharp/language-reference/computation-expressions#custom-operations) attribute to define the different parameters we can set on a motor. Here are the different operations we can use to update the `MotorState` record:
+Then we must listen to port changes and create two observables which trigger according to the button state, which is connected to port three:
 
 ```fsharp
-type MotorBuilder (motorType:MotorType) =
-    member __.Yield(_) = MotorState.empty
-
-    [<CustomOperation("port")>]
-    member __.SetPort(state:MotorState, value) =
-        { state with OutputPort = [ value ] }
-
-    [<CustomOperation("ports")>]
-    member __.SetPorts(state:MotorState, value) =
-        { state with OutputPort = value }
-
-    [<CustomOperation("turn_ratio")>]
-    member __.SetTurnRatio(state:MotorState, value) =
-        { state with TurnRatio = Some value }
-
-    [<CustomOperation("power")>]
-    member __.SetPower(state:MotorState, value) =
-        { state with Power = Some value }
-
-    [<CustomOperation("step")>]
-    member __.SetStep(state:MotorState, value) =
-        { state with Step = Some value }
-
-    [<CustomOperation("time")>]
-    member __.SetTime(state:MotorState, value) =
-        { state with Ms = Some value }
-
-    [<CustomOperation("should_break")>]
-    member __.ShouldBreak(state:MotorState, value) =
-        { state with Break = Some value }
+let (pressed, released) = 
+    brick.Ports.[RxMindstorms.InputPort.Three].Changes()
+    |> Observable.map (fun struct (p, _) -> p.SIValue)
+    |> Observable.distinctUntilChanged
+    |> Observable.partition (fun x -> x = 1.0f)
 ```
 
-But how do we go from a `MotorState` to a `BrickAction`? We can implement the `Run` method on the builder, which will convert the state on return. Here we're using `active patterns` to try do deduce the different actions to perform according to which parameters are set on the `MotorState`.
+Next we define what happens when you press and release the button:
 
 ```fsharp
-    member __.Run(state:MotorState) =
+use __ =
+    pressed
+    |> Observable.iter (fun x -> printfn "Pressed: %A" x)
+    |> Observable.map (fun _ ->
+        mindstorms {
+            Turn (Motors [ OutputPort.B; OutputPort.C ] ) With Power 100
+            Start (Motors [ OutputPort.B; OutputPort.C ])
+        }
+    )
+    |> Observable.flatmapTask (invokeCommand brick)
+    |> Observable.subscribe ignore
 
-        let (|TurnMotorAtPower|_|) (state:MotorState) =
-            match state with
-            | { OutputPort = [ port ]; TurnRatio = None; Power = Some power; Step = None; Ms = None; Break = None } ->
-                Some (MotorAction ([port], MotorAction.TurnMotorAtPower {| Power = power |}))
-            | _ ->
-                None
-
-        let (|TurnMotorAtPowerForTime|_|) (state:MotorState) =
-            match state with
-            | { OutputPort = [ port ]; TurnRatio = None; Power = Some power; Step = None; Ms = Some time; Break = doBreak } ->
-                let doBreak = doBreak |> Option.defaultValue false
-                Some (MotorAction ([port], MotorAction.TurnMotorAtPowerForTime {| Power = power; Time = time; Break = doBreak |}))
-            | _ ->
-                None
-
-        let (|StepMotorAtPower|_|) (state:MotorState) =
-            match state with
-            | { OutputPort = [ port ]; TurnRatio = None; Power = Some power; Step = Some step; Ms = None; Break = doBreak } ->
-                let doBreak = doBreak |> Option.defaultValue false
-                Some (MotorAction ([port], MotorAction.StepMotorAtPower {| Power = power; Steps = step; Break = doBreak |}))
-            | _ ->
-                None
-
-        let (|StepMotorSync|_|) (state:MotorState) =
-            match state with
-            | { OutputPort = ports; TurnRatio = Some turnRatio; Power = Some power; Step = Some step; Ms = None; Break = doBreak } ->
-                let doBreak = doBreak |> Option.defaultValue false
-                Some (MotorAction (ports, MotorAction.StepMotorSync {| Power = power; TurnRatio = turnRatio; Steps = step; Break = doBreak |}))
-            | _ ->
-                None
-
-        match state with
-        | TurnMotorAtPower x -> Ok x
-        | TurnMotorAtPowerForTime x -> Ok x
-        | StepMotorAtPower x -> Ok x
-        | StepMotorSync x -> Ok x
-        | _ -> Error (sprintf "Unrecognized motor instruction %A" state)
+use __ =
+    released
+    |> Observable.iter (fun x -> printfn "Released: %A" x)
+    |> Observable.map (fun _ ->
+        mindstorms {
+            Stop (Motors [ OutputPort.B; OutputPort.C ])
+        }
+    )
+    |> Observable.flatmapTask (invokeCommand brick)
+    |> Observable.subscribe ignore
 ```
 
-## Configuring the brick command
+## Creating programs with state
 
-Now that we have a `BrickAction` instance, we can apply it to a command before sending it to the brick. Here we have a function which updates the given command with the given action. 
+Here we try to make a program with different states.
 
-```fsharp
-let updateCommand (command:Command) (actions:BrickAction) =
-    match actions with
-    | MotorAction (port, action) ->
-        let ports =
-            port
-            |> List.map OutputPort.toEnum
-            |> List.reduce (|||)
-
-        match action with
-        | StartMotor -> command.StartMotor(ports)
-        | StopMotor -> command.StopMotor(ports, true)
-        | TurnMotorAtPower x -> command.TurnMotorAtPower(ports, x.Power)
-        | TurnMotorAtPowerForTime x -> command.TurnMotorAtPowerForTime(ports, x.Power, x.Time, x.Break)
-        | StepMotorAtPower x -> command.StepMotorAtPower(ports, x.Power, x.Steps, x.Break)
-        | StepMotorSync x -> command.StepMotorSync(ports, x.Power, x.TurnRatio, x.Steps, x.Break)
-
-    command
-```
-
-Since the `Command` can be updated with multiple `BrickActions` to do multiple actions in a series, we are returning the edited command at the end of the function. By doing this, the `updateCommand` function matches the signature required for `List.fold`.
+1. Wait for push sensor before moving
+2. When button is pressed, jump to `driveForwards` state
+3. Then jump to `waitForLightSensor` and wait for light sensor pass a threshold
+4. If the light sensor hits the threshold, jump to `turn()` state
+5. Then jump back to `driveForwards` state
 
 ```fsharp
-// Result<BrickAction, string>
-let motorAction1 =
-    motor {
-        ports [ OutputPort.A; OutputPort.B ]
-        power 42
-        turn_ratio 45s
-        step 180u
-        should_break false
+let rec waitUntilPushButton () = async {
+    printfn "waitUntilPushButton"
+    if brick.Ports.[RxMindstorms.InputPort.Three].SIValue = 1.0f then
+        return! driveForwards ()
+    else
+        do! Async.Sleep 100
+        return! waitUntilPushButton()        
+    }
+and driveForwards () = async {
+    printfn "driveForwards"
+    do! mindstorms {
+            Turn (Motors [ OutputPort.B; OutputPort.C ] ) With Power 100
+            Start (Motors [ OutputPort.B; OutputPort.C ] )
+        }
+        |> invokeCommand brick
+        |> Async.AwaitTask
+        |> Async.Ignore
+
+    return! waitForLightSensor ()        
+    }
+and waitForLightSensor () = async {
+    printfn "waitForLightSensor"
+    if brick.Ports.[RxMindstorms.InputPort.Four].SIValue > 60.0f then
+        return! turn ()
+    else
+        do! Async.Sleep 100
+        return! waitForLightSensor ()
+    }
+and turn () = async {
+    printfn "turn"
+    do! mindstorms {
+           TurnForTime 1000u (Motors [ OutputPort.B ]) With Power 80 Then Coast
+           TurnForTime 1000u (Motors [ OutputPort.C ]) With Power -80 Then Coast
+        }
+        |> invokeCommand brick
+        |> Async.AwaitTask
+        |> Async.Ignore
+
+    return! driveForwards ()        
     }
 
-// Result<BrickAction, string>
-let motorAction2 =
-    motor {
-        ports [ OutputPort.A; OutputPort.B ]
-        power 42
-        step 4u
-        time 1000u
-        should_break true
-    }
-
-let cmd = brick.CreateCommand(CommandType.DirectNoReply)
-
-// Result<BrickAction, string> list <-- We need to turn this around a bit
-let actions =
-    [ motorAction1
-      motorAction2 ]
-    |> List.fold updateCommand cmd // This doesn't take a list of Results
+waitUntilPushButton ()
+|> Async.RunSynchronously
 ```
 
-As you can see we have a list of Results, which doesn't fit into List.fold with our `updateCommand`. We have to turn it inside out like this:
+## Conclusion
 
-```fsharp
-module Result =
-    /// Turn a "Result<'a, 'b> list" into a "Result<'a list, 'b>" using *monadic* style.
-    /// Only the first error is returned. The error type does NOT need to be a list.
-    /// See http://fsharpforfunandprofit.com/posts/elevated-world-3/#validation
-    let sequenceM resultList =
-        let folder result state =
-            state |> Result.bind (fun list ->
-            result |> Result.bind (fun element ->
-                Ok (element :: list)
-                ))
-        let initState = Ok []
-        Seq.foldBack folder resultList initState
-```
+We've seen how to make a DSL in F# using custom computation expressions, which are quite flexible and powerful. This was just a silly example, but it shows we could almost write plain english to configure the commands. It did get a bit more complicated when wiring it all up though.
 
-Now we can use this new function to solve our problem:
-
-```fsharp
-// Result<Command, string>
-let updatedCommand =
-    [ motorAction1
-      motorAction2 ]
-    |> Result.sequenceM
-    |> Result.map (List.fold updateCommand cmd)
-```
-
-
-
-
-
-
-----------------------
-
-Ok, we now have a way to communicate with a Mindstorms brick over Bluetooth. Let's for arguments sake you don't have a Bluetooth adapter on your desktop, but your laptop does. For whatever reason you still want to sit on your desktop. Let's communicate over WiFi instead. So we're going to create a simple gRPC server which will communicate with the Lego for you.
-
-## Add some simple gRPC instructions
-
-Let's start adding things to a proto file. We will keep this simple, with just a couple of actions. But first we need to add some types:
-
-```proto
-syntax = "proto3";
-
-package Mindstorms;
-
-option csharp_namespace = "Mindstorms.Grpc";
-
-service MindstormsService {
-    rpc TurnMotor(TurnMotorRequest) returns (TurnMotorReply);
-}
-
-message OutputPort {
-    enum Port {
-        A = 0;
-        B = 1;
-        C = 2;
-        D = 3;
-        ALL = 4;
-    }
-}
-
-message StartMotor {
-}
-
-message StopMotor {
-}
-
-message TurnAtSpeed {
-    int32 speed = 1;
-}
-
-message TurnAtSpeedForTime {
-    int32 speed = 1;
-    uint32 ms = 2;
-    bool break = 3;
-}
-
-message StepAtSpeed {
-    int32 speed = 1;
-    uint32 steps = 2;
-    bool break = 3;
-}
-
-// Motor command
-message TurnMotorRequest {
-    OutputPort port = 1;
-    oneof move_type {
-        StartMotor start_motor = 2;
-        StopMotor stop_motor = 3;
-        TurnAtSpeed turn_at_speed = 4;
-        TurnAtSpeedForTime turn_at_speed_for_time = 5;
-        StepAtSpeed step_at_speed = 6;
-   }
-}
-
-message TurnMotorReply {
-}
-```
-
-## Bootstrapping a gRPC server
-
-### The included dotnet templates
-
-Let's do a `dotnet new` to list the available templates:
-
-```
-...
-
-ASP.NET Core Empty                                web                      [C#], F#          Web/Empty                            
-ASP.NET Core Web App (Model-View-Controller)      mvc                      [C#], F#          Web/MVC                              
-ASP.NET Core Web App                              webapp                   [C#]              Web/MVC/Razor Pages                  
-ASP.NET Core with Angular                         angular                  [C#]              Web/MVC/SPA                          
-ASP.NET Core with React.js                        react                    [C#]              Web/MVC/SPA                          
-ASP.NET Core with React.js and Redux              reactredux               [C#]              Web/MVC/SPA                          
-Razor Class Library                               razorclasslib            [C#]              Web/Razor/Library/Razor Class Library
-ASP.NET Core Web API                              webapi                   [C#], F#          Web/WebAPI                           
-ASP.NET Core gRPC Service                         grpc                     [C#]              Web/gRPC                
-
-...
-
-```
-
-Here we see there's no F# option for the `grpc` template. So, let's just start with an empty `web` template instead.
-
-```
-$ mkdir MindstormsServer
-$ cd MindstormsServer
-$ dotnet new web -lang F#
-```
-
-Now we need to add the dotnet gRPC packages:
-
-```
-$ dotnet add package Grpc.AspNetCore
-```
-
-And then try to build it:
-
-```
-$ dotnet build
-...
-...
-/home/atle/.nuget/packages/grpc.tools/2.25.0/build/_protobuf/Google.Protobuf.Tools.targets(51,5): error : Google.Protobuf.Tools proto compilation is only supported by default in a C# project (extension .csproj) [/home/atle/src/fsadvent2019/MindstormsServer/src/MindstormsServer/MindstormsServer.fsproj]
-```
-
-So the only made C# generators for gRPC. Big surprise. Let's make a C# project to generate the protobuf bits.
-
-```
-$ dotnet new classlib -o src/Proto
-$ dotnet add src/Proto package Grpc.AspNetCore
-$ dotnet sln add src/Proto/*.csproj
-$ dotnet add src/MindstormsServer/MindstormsServer.fsproj reference src/Proto/Proto.csproj
-```
-
-and then store the proto content above to `mindstorms.proto` next to the .csproj add the following to the .csproj file:
-
-```xml
-<ItemGroup>
-  <Protobuf Include="mindstorms.proto" GrpcServices="Both" />
-</ItemGroup>
-```
-
-And then try to build it again:
-
-```
-$ dotnet build
-...
-...
-/home/atle/.nuget/packages/grpc.tools/2.25.0/build/_protobuf/Google.Protobuf.Tools.targets(51,5): error : Google.Protobuf.Tools proto compilation is only supported by default in a C# project (extension .csproj) [/home/atle/src/fsadvent2019/MindstormsServer/src/MindstormsServer/MindstormsServer.fsproj]
-```
-
-FFS! So for some reason it complains even when referencing a C# project with protobufs. Let's just work around that by adding the `<Protobuf_Generator>CSharp</Protobuf_Generator>` to the .fsproj file like this:
-
-```xml
-<PropertyGroup>
-  <TargetFramework>netcoreapp3.0</TargetFramework>
-  <Protobuf_Generator>CSharp</Protobuf_Generator>
-</PropertyGroup>
-```
-
-And call `dotnet build` again and it should work.
-
+This is all I had time for unfortunately. Hope you learned something.
