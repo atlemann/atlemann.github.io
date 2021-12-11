@@ -7,7 +7,7 @@ tags: f# fsharp linux crypto cryptocurrency
 
 This is part of [F# Advent calendar 2021](https://sergeytihon.com/2021/10/18/f-advent-calendar-2021/). Go and check out all the other great posts and thank you Sergey Tihon for organizing!
 
-In this post we're going to create a console application for exploring your crypto assets.
+In this post we're going to create a console application for exploring your crypto assets. The code can be found [here](https://github.com/atlemann/FsCrypto).
 
 ## Exploring the APIs
 
