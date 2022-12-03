@@ -1,15 +1,15 @@
 ---
 layout: post
-title:  "Smarthome interaction with MQTT"
+title:  "Interacting between devices with MQTT"
 categories: fsharp
-tags: f# fsharp smarthome mqtt
+tags: f# fsharp futurehome mqtt fimp 
 ---
 
-# Interacting with a MQTT service
+# Interacting between devices with MQTT
 
 In this post we're going to try to interact with the smart home [MQTT](https://mqtt.org) API for [FutureHome](https://github.com/futurehomeno/fimp-api).
 
-Fortunately for us, someone has already created a MQTT client library for us, available [here](https://www.nuget.org/packages/MQTTnet/). And someone has been so kind as to extend it with observables, instead of having to deal with the utterly useless thing that is vanilla events. That library can be found [here](https://www.nuget.org/packages/MQTTnet.Extensions.External.RxMQTT.Client).
+Fortunately for us, someone has already created a MQTT client library for us, available [here](https://www.nuget.org/packages/MQTTnet/). And someone has been so kind as to extend it with observables, instead of having to deal with the utterly useless thing that is vanilla events. That library can be found [here](https://www.nuget.org/packages/MQTTnet.Extensions.External.RxMQTT.Client). Code related to this post is located in the `FsAdvent2022` branch in [this](https://github.com/atlemann/FsFimp/tree/FsAdvent2022) repository.
 
 # FIMP
 
@@ -55,8 +55,6 @@ bool_map    | `{"normalityRestored": true}`
 object*     | `{"nested": {"objects": "supported"}}`
 base64      | `U28gbG9uZywgYW5kIHRoYW5rcyBmb3IgYWxsIHRoZSBmaXNoLg==`
 
-\*A complex object which can't be mapped to primitive types. The structure of an object is defined by interface type and is unique for every interface type. 
-
 ## Creating the object type
 
 All the possible types of `val_t` are pretty simple except the `object` type. After some digging around [here](https://github.com/futurehomeno/fimpgo/blob/master/docs/primefimp/examples) it seems it look something like this:
@@ -86,6 +84,7 @@ where param could look like:
 So let's start off with the possible commands. We're going to use [Thoth.Json.Net](https://www.nuget.org/packages?q=thoth.json.net) to encode our messages, like this:
 
 ```fsharp
+[<RequireQualifiedAccess>]
 type Cmd =
     | Get
     | Set
@@ -95,40 +94,46 @@ type Cmd =
 module Cmd =
     let encode (value: Cmd) : JsonValue =
         match value with
-        | Get -> Encode.string "get"
-        | Set -> Encode.string "set"
-        | Delete -> Encode.string "delete"
-        | Edit -> Encode.string "edit"
+        | Cmd.Get -> Encode.string "get"
+        | Cmd.Set -> Encode.string "set"
+        | Cmd.Delete -> Encode.string "delete"
+        | Cmd.Edit -> Encode.string "edit"
 ```
 
 Next we have components, which can be any of the following:
 
 ```fsharp
+[<RequireQualifiedAccess>]
 type Component =
-    | Service
     | Config
-    | Room
     | Device
-    | Mode
-    | Hub
     | House
+    | Hub
+    | Mode
+    | Room
+    | Service
+    | Shortcut
+    | Thing
 
 module Component =
     let encode (value: Component) : JsonValue =
         match value with
-        | Service -> Encode.string "service"
-        | Config -> Encode.string "config"
-        | Room -> Encode.string "room"
-        | Device -> Encode.string "device"
-        | Mode -> Encode.string "mode"
-        | Hub -> Encode.string "hub"
-        | House -> Encode.string "house"
+        | Component.Config -> Encode.string "config"
+        | Component.Device -> Encode.string "device"
+        | Component.House -> Encode.string "house"
+        | Component.Hub -> Encode.string "hub"
+        | Component.Mode -> Encode.string "mode"
+        | Component.Room -> Encode.string "room"
+        | Component.Service -> Encode.string "service"
+        | Component.Shortcut -> Encode.string "shortcut"
+        | Component.Thing -> Encode.string "thing"
 
 ```
 
 The id can be things like room-id or house mode (home, sleep etc.):
 
 ```fsharp
+[<RequireQualifiedAccess>]
 type ObjectRequestId =
     | DeviceId of int
     | Mode of Mode
@@ -137,9 +142,9 @@ type ObjectRequestId =
 module ObjectRequestId =
     let encode (value: ObjectRequestId) : JsonValue =
         match value with
-        | DeviceId v -> Encode.int v
-        | Mode m -> Mode.encode m
-        | FireAlarm (isEnabled, isSupported) ->
+        | ObjectRequestId.DeviceId v -> Encode.int v
+        | ObjectRequestId.Mode m -> Mode.encode m
+        | ObjectRequestId.FireAlarm (isEnabled, isSupported) ->
             Encode.object [
                 "enabled", Encode.bool isEnabled
                 "supported", Encode.bool isSupported
@@ -191,6 +196,7 @@ module ObjectVal =
 Now that we have the `object` type, we can create the `val` type:
 
 ```fsharp
+[<RequireQualifiedAccess>]
 type Val =
     | String of string
     | Int of int
@@ -211,20 +217,20 @@ module Val =
 
     let encode (value: Val) =
         match value with
-        | String x -> ["val_t", Encode.string "string"; "val", Encode.string x]
-        | Int x-> ["val_t", Encode.string "int"; "val", Encode.int x]
-        | Float x -> ["val_t", Encode.string "float"; "val", Encode.float x]
-        | Bool x -> ["val_t", Encode.string "bool"; "val", Encode.bool x]
-        | Null -> ["val_t", Encode.string "null"; "val", Encode.string "null"]
-        | Str_array xs -> ["val_t", Encode.string "string_array"; "val", xs |> Array.map Encode.string |> Encode.array]
-        | Int_array xs -> ["val_t", Encode.string "int_array"; "val", xs |> Array.map Encode.int |> Encode.array]
-        | Float_array xs -> ["val_t", Encode.string "float_array"; "val", xs |> Array.map Encode.float |> Encode.array]
-        | Int_map x -> ["val_t", Encode.string "int_map"; "val", x |> Map.map (fun _ v -> Encode.int v) |> Encode.dict]
-        | Str_map x -> ["val_t", Encode.string "str_map"; "val", x |> Map.map (fun _ v -> Encode.string v) |> Encode.dict]
-        | Float_map x -> ["val_t", Encode.string "float_map"; "val", x |> Map.map (fun _ v -> Encode.float v) |> Encode.dict]
-        | Bool_map x -> ["val_t", Encode.string "bool_map"; "val", x |> Map.map (fun _ v -> Encode.bool v) |> Encode.dict]
-        | Object x -> ["val_t", Encode.string "object"; "val", ObjectVal.encode x]
-        | Base64 x -> ["val_t", Encode.string "base64"; "val", Encode.string x]
+        | Val.String x -> ["val_t", Encode.string "string"; "val", Encode.string x]
+        | Val.Int x -> ["val_t", Encode.string "int"; "val", Encode.int x]
+        | Val.Float x -> ["val_t", Encode.string "float"; "val", Encode.float x]
+        | Val.Bool x -> ["val_t", Encode.string "bool"; "val", Encode.bool x]
+        | Val.Null -> ["val_t", Encode.string "null"; "val", Encode.string "null"]
+        | Val.Str_array xs -> ["val_t", Encode.string "string_array"; "val", xs |> Array.map Encode.string |> Encode.array]
+        | Val.Int_array xs -> ["val_t", Encode.string "int_array"; "val", xs |> Array.map Encode.int |> Encode.array]
+        | Val.Float_array xs -> ["val_t", Encode.string "float_array"; "val", xs |> Array.map Encode.float |> Encode.array]
+        | Val.Int_map x -> ["val_t", Encode.string "int_map"; "val", x |> Map.map (fun _ v -> Encode.int v) |> Encode.dict]
+        | Val.Str_map x -> ["val_t", Encode.string "str_map"; "val", x |> Map.map (fun _ v -> Encode.string v) |> Encode.dict]
+        | Val.Float_map x -> ["val_t", Encode.string "float_map"; "val", x |> Map.map (fun _ v -> Encode.float v) |> Encode.dict]
+        | Val.Bool_map x -> ["val_t", Encode.string "bool_map"; "val", x |> Map.map (fun _ v -> Encode.bool v) |> Encode.dict]
+        | Val.Object x -> ["val_t", Encode.string "object"; "val", ObjectVal.encode x]
+        | Val.Base64 x -> ["val_t", Encode.string "base64"; "val", Encode.string x]
 ```
 
 ## The message type
@@ -271,6 +277,16 @@ module Message =
           Uid = uid
           Val = value
           Ver = Ver.defaultVer }
+
+    let createTimeStamped props serv src interfaceType value =
+        create
+            (Ctime.create DateTime.Now)
+            props
+            serv
+            src
+            interfaceType
+            (Uid.newUid())
+            value
 
     let withCorrelationId corId msg =
         { msg with CorId = Some corId }
@@ -381,25 +397,24 @@ module Things =
         |> createDefaultMessage
         |> Message.withResponseTopic responseTopic
 
-    // string list -> Val
+    // Component list -> Val
     let private encodeComponents items =
         Encode.object [
             "components",
             items
-            |> List.map Encode.string
+            |> List.map Component.encode
             |> Encode.list
         ]
         |> Some
         |> ObjectVal.create Cmd.Get None None
         |> Val.Object
 
-    // Message
+    // Val
     let listDevices =
         [
-            "device"
+            Component.Device
         ]
         |> encodeComponents
-        |> createMessage
 ```
 
 ## Interacting with the API
@@ -407,31 +422,35 @@ module Things =
 The MqttClient we're using returns responses using observables. If we want to get the list of devices in a request/response fashion, we have to [leave the monad](http://introtorx.com/Content/v1.0.10621.0/10_LeavingTheMonad.html) by converting the observable to a Task. 
 
 ```fsharp
-let getAsync (mqttClient: IRxMqttClient) requestTopic responseTopic message = task {    
-    
-    let respObs =
-        responseTopic // The topic we created above and added to the message as repond topic
-        |> MqttClient.createSubscription mqttClient
-        // We want the first message returned and the observable to complete
-        |> Observable.first
+let getAsync (mqttClient: IRxMqttClient) requestTopic responseTopic message =
+    task {    
+        let respObs =
+            responseTopic // The response topic we defined above
+            |> MqttClient.createSubscription mqttClient
+            // We want the first message and the observable to complete
+            // so the task below will finish/return.
+            |> Observable.first
 
-    // Subscribe/start as task before sending the request
-    let response = respObs.ToTask()
+        // Subscribe/start as task before sending the request
+        let response = respObs.ToTask()
 
-    do! message
-        |> MqttClient.createMessage requestTopic
-        |> mqttClient.PublishAsync
+        do! message
+            |> MqttClient.createMessage requestTopic
+            |> mqttClient.PublishAsync
 
-    return! response
+        return! response
     }
 ```
 
 ```fsharp
 /// Gets all available devices
 let getAllDevices (mqttClient: IRxMqttClient) = task {
-    let! response = getAsync mqttClient Things.requestTopic Things.responseTopic Things.listDevices
-    let devices = response.ApplicationMessage.Payload.ToUTF8String()
-    return devices
+    let! response =
+        Things.listDevices
+        |> Things.createMessage
+        |> getAsync mqttClient Things.requestTopic Things.responseTopic
+
+    return response.ApplicationMessage.Payload.ToUTF8String()
     }
 ```
 This is an example response for a motion sensor device:
@@ -653,7 +672,7 @@ This is an example response for a motion sensor device:
 ...
 ```
 
-## Interaction between divices
+## Interaction between devices
 
 Now that we know which devices we have, their features and topics, we can try to make some interaction between them. We have a Fibaro motion sensor and a Philips Hue Go lamp we can play with. First we need some requests for turning on lights and setting color.
 
@@ -672,49 +691,59 @@ module Units =
     type [<Measure>] Green
     type [<Measure>] Blue
 
+type LevelSwitch = On | Off
+
+module LevelSwitch =
+    let interfaceType = Type.create "cmd.binary.set"
+    let service = Serv.OutLevelSwitch
+
+    let createMessage (toggle: LevelSwitch) =
+        match toggle with
+        | On -> true
+        | Off -> false
+        |> Val.Bool
+        |> Message.createTimeStamped
+            Props.empty
+            service
+            src
+            interfaceType
+
 type Red = int<Units.Red>
 type Green = int<Units.Green>
 type Blue = int<Units.Blue>
 
-type Toggle = On | Off
+module Color =
+    let interfaceType = Type.create "cmd.color.set"
+    let service = Serv.ColorControl
 
-let power (toggle: Toggle) =
-    match toggle with
-    | On -> true
-    | Off -> false
-    |> Val.Bool
-    |> Message.create
-        (Ctime.create DateTime.Now)
-        Props.empty
-        Serv.OutLevelSwitch
-        src
-        (Type.create "cmd.binary.set")
-        (Uid.newUid())
-
-let color (red: Red) (green: Green) (blue: Blue) =
-    seq {
-        "red", int red
-        "green", int green
-        "blue", int blue
-    }
-    |> Map.ofSeq
-    |> Val.Int_map
-    |> Message.create
-        (Ctime.create DateTime.Now)
-        Props.empty
-        Serv.ColorControl
-        src
-        (Type.create "cmd.color.set")
-        (Uid.newUid())
+    let createMessage (red: Red) (green: Green) (blue: Blue) =
+        seq {
+            "red", int red
+            "green", int green
+            "blue", int blue
+        }
+        |> Map.ofSeq
+        |> Val.Int_map
+        |> Message.createTimeStamped
+            Props.empty
+            service
+            src
+            interfaceType
 ```
 
-Next we have to listen to events from the motion sensor. We'll turn on the lights when presence is detected and make it red when the burglar event is triggered (e.g. when shaking the sensor):
+Next we have to listen to events from the motion sensor. We'll turn on the lights when presence is detected and make it red when the burglar event is triggered (e.g. when shaking the sensor). The necessary topics was found from the `getAllDevices` response above.
 
 ```fsharp
 use! mqttClient = MqttClient.create (ClientId "FsFimp") server credentials
-use _ = mqttClient.ConnectingFailedEvent.Subscribe(fun msg -> printfn "%A, %A" msg.ConnectResult msg.Exception.Message)
+use _ =
+    mqttClient
+        .ConnectingFailedEvent
+        .Subscribe(fun msg ->
+            printfn "%A, %A" msg.ConnectResult msg.Exception.Message)
+
 let send (msg: MQTTnet.MqttApplicationMessage) : Task<unit> =
     task {
+         // This returns Task, but we need Task<unit>, hence the CE
         return! mqttClient.PublishAsync msg
     }
 
@@ -727,7 +756,7 @@ let turnOnLightOnPresence =
             "pt:j1/mt:cmd/rt:dev/rn:hue/ad:1/sv:out_lvl_switch/ad:l14_0"
             |> RequestTopic.create
 
-        Commands.power Toggle.On
+        LevelSwitch.createMessage LevelSwitch.On
         |> MqttClient.createMessage requestTopic)
 
 let makeLightRedOnBurglar =
@@ -739,17 +768,19 @@ let makeLightRedOnBurglar =
             "pt:j1/mt:cmd/rt:dev/rn:hue/ad:1/sv:color_ctrl/ad:l14_0"
             |> RequestTopic.create
 
-        Commands.color 255<Units.Red> 0<Units.Green> 0<Units.Blue>
+        Color.createMessage 255<Units.Red> 0<Units.Green> 0<Units.Blue>
         |> MqttClient.createMessage requestTopic)
 
+// Merge the two streams into one and send the messages when the different
+// events are reported by the motion sensor.
 use _ =
     Observable.merge turnOnLightOnPresence makeLightRedOnBurglar
     |> Observable.flatmapTask send
     |> Observable.subscribe id
 ```
 
-![Movie gif]({{ "/assets/mindstorms_dsl/mindstorms.gif" }})
+![Movie gif]({{ "/assets/mqtt/fsfimp.gif" }})
 
 ## Next steps
 
-Decode the features of the devices and add e.g. the lights to a smart house dashboard using Fable. But that's a post for another time.
+That's all I had time for this time. Next steps would be to decode the features of the devices and add e.g. the lights to a smart house dashboard using Fable. But that's a post for another time.
