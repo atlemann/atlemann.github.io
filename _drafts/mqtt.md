@@ -1,15 +1,15 @@
 ---
 layout: post
-title:  "Interacting between devices with MQTT"
+title:  "Interacting with devices using MQTT"
 categories: fsharp
-tags: f# fsharp futurehome mqtt fimp 
+tags: f# fsharp futurehome mqtt fimp
 ---
 
-# Interacting between devices with MQTT
+This is part of [Sergey Thion's](https://sergeytihon.com) awesome [F# advent calendar](https://sergeytihon.com/fsadvent/). Thanks for organizing one again!
 
-In this post we're going to try to interact with the smart home [MQTT](https://mqtt.org) API for [FutureHome](https://github.com/futurehomeno/fimp-api).
+Code related to this post is located in the `FsAdvent2022` branch in [this](https://github.com/atlemann/FsFimp/tree/FsAdvent2022) repository.
 
-Fortunately for us, someone has already created a MQTT client library for us, available [here](https://www.nuget.org/packages/MQTTnet/). And someone has been so kind as to extend it with observables, instead of having to deal with the utterly useless thing that is vanilla events. That library can be found [here](https://www.nuget.org/packages/MQTTnet.Extensions.External.RxMQTT.Client). Code related to this post is located in the `FsAdvent2022` branch in [this](https://github.com/atlemann/FsFimp/tree/FsAdvent2022) repository.
+In this post we're going to try to interact with the smart home [MQTT](https://mqtt.org) API for [FutureHome](https://github.com/futurehomeno/fimp-api). Fortunately for us, someone has already created a MQTT client library for us, available [here](https://www.nuget.org/packages/MQTTnet/). And someone has been so kind as to extend it with observables, instead of having to deal with the utterly useless thing called events. That library can be found [here](https://www.nuget.org/packages/MQTTnet.Extensions.External.RxMQTT.Client).
 
 # FIMP
 
@@ -731,7 +731,7 @@ module Color =
             interfaceType
 ```
 
-Next we have to listen to events from the motion sensor. We'll turn on the lights when presence is detected and make it red when the burglar event is triggered (e.g. when shaking the sensor). The necessary topics was found from the `getAllDevices` response above.
+Next we have to listen to events from the motion sensor. We'll turn on the lights when presence is detected and make it red when the burglar event is triggered (e.g. when shaking the sensor). The necessary topics were found from the `getAllDevices` response above.
 
 ```fsharp
 use! mqttClient = MqttClient.create (ClientId "FsFimp") server credentials
@@ -743,7 +743,9 @@ use _ =
 
 let send (msg: MQTTnet.MqttApplicationMessage) : Task<unit> =
     task {
-         // This returns Task, but we need Task<unit>, hence the CE
+         // This returns Task, but we need Task<unit>, hence the CE.
+         // There might be a simpler way to do this though, but I 
+         // couldn't figure it out in time.
         return! mqttClient.PublishAsync msg
     }
 
@@ -783,4 +785,61 @@ use _ =
 
 ## Next steps
 
-That's all I had time for this time. Next steps would be to decode the features of the devices and add e.g. the lights to a smart house dashboard using Fable. But that's a post for another time.
+We'd want to decode the devices response and capture the different services each device provides. We could do something like this:
+
+```fsharp
+type Service =
+    | Battery of ResponseTopic
+    | BurglarAlarm of ResponseTopic
+    | Luminance of ResponseTopic
+    | Presence of ResponseTopic
+    | Temperature of ResponseTopic
+
+module Service =
+    let decode : Decoder<Service list> =
+        Decode.object (fun get ->
+            [
+                get.Optional.At [ "battery"; "addr" ] Decode.string |> Option.map (ResponseTopic.createFromResourceType >> Battery)
+                get.Optional.At [ "alarm_burglar"; "addr" ] Decode.string |> Option.map (ResponseTopic.createFromResourceType >> BurglarAlarm)
+                get.Optional.At [ "sensor_lumin"; "addr" ] Decode.string |> Option.map (ResponseTopic.createFromResourceType >> Luminance)
+                get.Optional.At [ "sensor_presence"; "addr" ] Decode.string |> Option.map (ResponseTopic.createFromResourceType >> Presence)
+                get.Optional.At [ "sensor_temp"; "addr" ] Decode.string |> Option.map (ResponseTopic.createFromResourceType >> Temperature)
+            ]
+            |> List.choose id)
+
+type Device =
+    { Id: int
+      Room: int option
+      Model: string option
+      Services: Service list }
+
+module Device =
+    let decoder : Decoder<Device> =
+        Decode.object (fun get ->
+            let id = get.Required.Field "id" Decode.int
+            let room = get.Optional.Field "room" Decode.int
+
+            let model = get.Optional.At [ "model" ] Decode.string
+            let modelAlias = get.Optional.At [ "modelAlias" ] Decode.string
+
+            let modelName =
+                match model, modelAlias with
+                | Some model, _ -> Some model
+                | _, Some alias -> Some alias
+                | _, _ -> None
+
+            let services = get.Required.Field "services" Service.decode
+
+            { Id = id
+              Room = room
+              Model = modelName
+              Services = services })
+
+    let devicesDecoder : Decoder<Device list> =
+        Decode.object (fun get ->
+            get.Required.At [ "val"; "param"; "device" ] (Decode.list decoder))
+
+    let decodeAll json = Decode.fromString devicesDecoder json
+```
+
+Unfortunately, that's all I had time for in this post. Next steps would be to try and add interaction with the lights to my smart house dashboard, written using Fable, where I already have weather forecast, netatmo weather station data and today's electricity prices. But that's a post for another time.
