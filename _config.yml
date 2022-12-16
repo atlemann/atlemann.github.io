@@ -24,9 +24,11 @@ google_analytics: G-F0RCJ6KHNV
 
 # Build settings
 markdown: kramdown
-theme: minima
+#theme: minima
+remote_theme: jekyll/minima
 plugins:
   - jekyll-feed
+  - jekyll-remote-theme
 
 # Exclude from processing.
 # The following items will not be processed, by default. Create a custom list
